@@ -12,6 +12,7 @@ services:
       - ./db/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
     ports:
       - "5432:5432"
+    restart: unless-stopped
 
   api:
     build: ./api
@@ -21,6 +22,7 @@ services:
       - db
     ports:
       - "8000:8000"
+    restart: unless-stopped
 
 volumes:
   db-data:
