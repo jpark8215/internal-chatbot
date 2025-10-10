@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "internal-chatbot"
+version = "0.1.0"
+description = "Internal chatbot backend"
+authors = ["jpark <jpark8215@gmail.com>"]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 88
+target-version = 'py311'
+extend-select = ['E', 'W', 'F']
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
