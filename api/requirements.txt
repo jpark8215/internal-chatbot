@@ -1,5 +1,17 @@
-fastapi==0.95.2
-uvicorn[standard]==0.23.1
-asyncpg==0.27.0
-psycopg2-binary==2.9.10
-authlib==1.2.0
+# Core API dependencies
+fastapi>=0.103.2,<0.104.0
+uvicorn[standard]>=0.23.2,<0.24.0
+pydantic>=2.4.2,<3.0.0
+pydantic-settings>=2.0.3,<3.0.0
+python-dotenv>=1.0.0,<2.0.0
+aiofiles>=23.2.1,<24.0.0
+
+# HTTP client for Ollama API
+aiohttp>=3.8.6,<4.0.0
+
+# Database support 
+psycopg2-binary>=2.9.9,<3.0.0
+
+# Ingestion file parsers
+pypdf>=4.2.0,<5.0.0
+python-docx>=1.1.0,<2.0.0
