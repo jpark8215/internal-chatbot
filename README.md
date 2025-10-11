@@ -1,4 +1,4 @@
-# internal-chatbot
+# Internal-chatbot
 
 FastAPI-based local chatbot that uses a local LLM via Ollama and can optionally ground answers in your policy files using pgvector (Postgres) for Retrieval-Augmented Generation (RAG).
 
