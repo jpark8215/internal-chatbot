@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Database Debug - Knowledge Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --border-light: #e2e8f0;
+      --accent-primary: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-light: #dbeafe;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding: 1.5rem 2rem;
+      background: var(--bg-primary);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-light);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.2rem;
+    }
+
+    .header-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .header-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .nav-link {
+      padding: 0.5rem 1rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+
+    .nav-link:hover {
+      background: var(--accent-light);
+      color: var(--accent-primary);
+    }
+
+    .refresh-btn {
+      padding: 0.5rem 1rem;
+      background: var(--accent-primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .refresh-btn:hover {
+      background: var(--accent-hover);
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .info-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-xl);
+      padding: 2rem;
+      box-shadow: var(--shadow-md);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--accent-light);
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-primary);
+      font-size: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .metric-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .metric-label {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .sources-section {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-xl);
+      padding: 2rem;
+      box-shadow: var(--shadow-md);
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .sources-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .source-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-light);
+    }
+
+    .source-name {
+      font-weight: 500;
+      color: var(--text-primary);
+      flex: 1;
+      margin-right: 1rem;
+      word-break: break-all;
+    }
+
+    .source-count {
+      font-weight: 600;
+      color: var(--accent-primary);
+      background: var(--accent-light);
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+    }
+
+    .config-section {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-xl);
+      padding: 2rem;
+      box-shadow: var(--shadow-md);
+      margin-top: 2rem;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+
+    .config-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-light);
+    }
+
+    .config-label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .config-value {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .config-value.enabled {
+      color: var(--success);
+    }
+
+    .config-value.disabled {
+      color: var(--error);
+    }
+
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+
+    .loading-spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border-light);
+      border-top: 2px solid var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 0.5rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error {
+      color: var(--error);
+      text-align: center;
+      padding: 2rem;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem 0.5rem;
+      }
+
+      .header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+        padding: 1rem;
+      }
+
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div>
+          <h1 class="header-title">Database Debug</h1>
+          <p class="header-subtitle">Database connection and document analysis</p>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a href="/admin" class="nav-link">
+          <i class="fas fa-arrow-left"></i> Back to Admin
+        </a>
+        <a href="/" class="nav-link">
+          <i class="fas fa-home"></i> Home
+        </a>
+      </div>
+    </header>
+
+    <!-- Refresh Button -->
+    <button class="refresh-btn" onclick="loadDatabaseInfo()">
+      <i class="fas fa-sync-alt"></i>
+      Refresh Data
+    </button>
+
+    <!-- Info Grid -->
+    <div class="info-grid" id="infoGrid">
+      <div class="loading">
+        <div class="loading-spinner"></div>
+        Loading database information...
+      </div>
+    </div>
+
+    <!-- Sources Section -->
+    <div class="sources-section">
+      <h2 class="section-title">
+        <i class="fas fa-file-alt"></i>
+        Documents by Source
+      </h2>
+      <div id="sourcesList">
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          Loading sources...
+        </div>
+      </div>
+    </div>
+
+    <!-- Configuration Section -->
+    <div class="config-section">
+      <h2 class="section-title">
+        <i class="fas fa-cog"></i>
+        Database Configuration
+      </h2>
+      <div class="config-grid" id="configGrid">
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          Loading configuration...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function loadDatabaseInfo() {
+      try {
+        const response = await fetch('/debug/database');
+        const data = await response.json();
+
+        if (data.status === 'error') {
+          showError('infoGrid', data.error);
+          return;
+        }
+
+        displayDatabaseInfo(data);
+        displaySources(data.documents_by_source);
+        displayConfiguration(data);
+
+      } catch (error) {
+        console.error('Failed to load database info:', error);
+        showError('infoGrid', 'Failed to load database information');
+      }
+    }
+
+    function displayDatabaseInfo(data) {
+      const infoHtml = `
+        <div class="info-card">
+          <div class="card-header">
+            <div class="card-icon">
+              <i class="fas fa-server"></i>
+            </div>
+            <div class="card-title">Connection Status</div>
+          </div>
+          <div class="metric-value">${data.status}</div>
+          <div class="metric-label">Database connection</div>
+        </div>
+
+        <div class="info-card">
+          <div class="card-header">
+            <div class="card-icon">
+              <i class="fas fa-file-text"></i>
+            </div>
+            <div class="card-title">Total Documents</div>
+          </div>
+          <div class="metric-value">${data.total_documents.toLocaleString()}</div>
+          <div class="metric-label">Document chunks stored</div>
+        </div>
+
+        <div class="info-card">
+          <div class="card-header">
+            <div class="card-icon">
+              <i class="fas fa-folder"></i>
+            </div>
+            <div class="card-title">Source Files</div>
+          </div>
+          <div class="metric-value">${Object.keys(data.documents_by_source).length}</div>
+          <div class="metric-label">Unique source files</div>
+        </div>
+
+        <div class="info-card">
+          <div class="card-header">
+            <div class="card-icon">
+              <i class="fas fa-upload"></i>
+            </div>
+            <div class="card-title">Auto Ingest</div>
+          </div>
+          <div class="metric-value">${data.auto_ingest_enabled ? 'Enabled' : 'Disabled'}</div>
+          <div class="metric-label">Automatic file ingestion</div>
+        </div>
+      `;
+
+      document.getElementById('infoGrid').innerHTML = infoHtml;
+    }
+
+    function displaySources(sources) {
+      if (!sources || Object.keys(sources).length === 0) {
+        document.getElementById('sourcesList').innerHTML = 
+          '<div class="error">No source files found</div>';
+        return;
+      }
+
+      const sourcesHtml = Object.entries(sources)
+        .sort(([,a], [,b]) => b - a) // Sort by count descending
+        .map(([source, count]) => {
+          const fileName = source.split('/').pop() || source.split('\\').pop() || source;
+          return `
+            <div class="source-item">
+              <div class="source-name" title="${source}">${fileName}</div>
+              <div class="source-count">${count.toLocaleString()} chunks</div>
+            </div>
+          `;
+        }).join('');
+
+      document.getElementById('sourcesList').innerHTML = `
+        <div class="sources-list">
+          ${sourcesHtml}
+        </div>
+      `;
+    }
+
+    function displayConfiguration(data) {
+      const configHtml = `
+        <div class="config-item">
+          <span class="config-label">Database URL Configured</span>
+          <span class="config-value ${data.database_url_configured ? 'enabled' : 'disabled'}">
+            ${data.database_url_configured ? 'Yes' : 'No'}
+          </span>
+        </div>
+        <div class="config-item">
+          <span class="config-label">DB Host Configured</span>
+          <span class="config-value ${data.db_host_configured ? 'enabled' : 'disabled'}">
+            ${data.db_host_configured ? 'Yes' : 'No'}
+          </span>
+        </div>
+        <div class="config-item">
+          <span class="config-label">Auto Ingest Enabled</span>
+          <span class="config-value ${data.auto_ingest_enabled ? 'enabled' : 'disabled'}">
+            ${data.auto_ingest_enabled ? 'Yes' : 'No'}
+          </span>
+        </div>
+        <div class="config-item">
+          <span class="config-label">Auto Ingest Path</span>
+          <span class="config-value">${data.auto_ingest_path || 'Not set'}</span>
+        </div>
+      `;
+
+      document.getElementById('configGrid').innerHTML = configHtml;
+    }
+
+    function showError(elementId, message) {
+      document.getElementById(elementId).innerHTML = `<div class="error">Error: ${message}</div>`;
+    }
+
+    // Load initial data
+    loadDatabaseInfo();
+  </script>
+</body>
+</html>

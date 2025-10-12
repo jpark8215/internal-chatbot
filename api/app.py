@@ -94,17 +94,12 @@ async def health():
     """Check the health of API components."""
     db_status = "disabled"  # Default to disabled
 
-    if settings.db_host and find_spec("psycopg2"):
+    # Check if database is configured (either DATABASE_URL or db_host)
+    if (settings.database_url or settings.db_host) and find_spec("psycopg2"):
         try:
-            import psycopg2
-            conn = psycopg2.connect(
-                host=settings.db_host,
-                port=settings.db_port,
-                dbname=settings.db_name,
-                user=settings.db_user,
-                password=settings.db_password
-            )
-            conn.close()
+            # Use the DAO to test the connection (it handles both DATABASE_URL and individual settings)
+            dao = get_dao()
+            count = dao.count_documents()
             db_status = "ok"
         except Exception as e:
             db_status = f"error: {str(e)}"
@@ -156,6 +151,55 @@ async def admin_panel():
     if admin_path.exists():
         return FileResponse(str(admin_path))
     return {"message": "Admin panel not found"}
+
+# Admin HTML Pages
+@app.get("/analytics")
+async def analytics_page():
+    """Serve analytics page."""
+    analytics_path = _static_dir / "analytics.html"
+    if analytics_path.exists():
+        return FileResponse(str(analytics_path))
+    return {"message": "Analytics page not found"}
+
+@app.get("/health-check")
+async def health_check_page():
+    """Serve health check page."""
+    health_path = _static_dir / "health.html"
+    if health_path.exists():
+        return FileResponse(str(health_path))
+    return {"message": "Health check page not found"}
+
+@app.get("/database-debug")
+async def database_debug_page():
+    """Serve database debug page."""
+    db_debug_path = _static_dir / "database-debug.html"
+    if db_debug_path.exists():
+        return FileResponse(str(db_debug_path))
+    return {"message": "Database debug page not found"}
+
+@app.get("/system-stats")
+async def system_stats_page():
+    """Serve system statistics page."""
+    stats_path = _static_dir / "system-stats.html"
+    if stats_path.exists():
+        return FileResponse(str(stats_path))
+    return {"message": "System stats page not found"}
+
+@app.get("/search-debug")
+async def search_debug_page():
+    """Serve search debug page."""
+    search_debug_path = _static_dir / "search-debug.html"
+    if search_debug_path.exists():
+        return FileResponse(str(search_debug_path))
+    return {"message": "Search debug page not found"}
+
+@app.get("/keyword-search-debug")
+async def keyword_search_debug_page():
+    """Serve keyword search debug page."""
+    keyword_debug_path = _static_dir / "keyword-search-debug.html"
+    if keyword_debug_path.exists():
+        return FileResponse(str(keyword_debug_path))
+    return {"message": "Keyword search debug page not found"}
 
 @app.get("/info")
 async def info():
