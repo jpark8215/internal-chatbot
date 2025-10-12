@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Panel - Knowledge Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --bg-tertiary: #f1f5f9;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --border-light: #e2e8f0;
+      --border-medium: #cbd5e1;
+      --accent-primary: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-light: #dbeafe;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+    }
+
+    [data-theme="dark"] {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --border-light: #334155;
+      --border-medium: #475569;
+      --accent-primary: #60a5fa;
+      --accent-hover: #3b82f6;
+      --accent-light: #1e3a8a;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --error: #f87171;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding: 1.5rem 2rem;
+      background: var(--bg-primary);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-light);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--warning), #d97706);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.2rem;
+    }
+
+    .header-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .header-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .nav-link {
+      padding: 0.5rem 1rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+
+    .nav-link:hover {
+      background: var(--accent-light);
+      color: var(--accent-primary);
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+
+    .admin-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-xl);
+      padding: 2rem;
+      box-shadow: var(--shadow-md);
+      transition: all 0.2s ease;
+    }
+
+    .admin-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--accent-light);
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-primary);
+      font-size: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .card-description {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+
+    .card-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .action-link {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+
+    .action-link:hover {
+      background: var(--accent-light);
+      color: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+
+    .action-link i {
+      width: 16px;
+      text-align: center;
+    }
+
+    .warning-card {
+      border-color: var(--warning);
+      background: linear-gradient(135deg, #fef3c7, var(--bg-primary));
+    }
+
+    .warning-card .card-icon {
+      background: #fef3c7;
+      color: var(--warning);
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem 0.5rem;
+      }
+
+      .header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+        padding: 1rem;
+      }
+
+      .admin-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div>
+          <h1 class="header-title">Admin Panel</h1>
+          <p class="header-subtitle">System administration and monitoring</p>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a href="/" class="nav-link">
+          <i class="fas fa-home"></i> Back to Chat
+        </a>
+      </div>
+    </header>
+
+    <!-- Admin Grid -->
+    <div class="admin-grid">
+      <!-- Query History Card -->
+      <div class="admin-card">
+        <div class="card-header">
+          <div class="card-icon">
+            <i class="fas fa-history"></i>
+          </div>
+          <div class="card-title">Query History</div>
+        </div>
+        <div class="card-description">
+          View and analyze user queries, responses, and usage patterns. Search through historical interactions and monitor system performance.
+        </div>
+        <div class="card-actions">
+          <a href="/history" class="action-link">
+            <i class="fas fa-list"></i>
+            <span>View Query History</span>
+          </a>
+          <a href="/api/analytics" class="action-link" target="_blank">
+            <i class="fas fa-chart-bar"></i>
+            <span>Usage Analytics API</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- System Health Card -->
+      <div class="admin-card">
+        <div class="card-header">
+          <div class="card-icon">
+            <i class="fas fa-heartbeat"></i>
+          </div>
+          <div class="card-title">System Health</div>
+        </div>
+        <div class="card-description">
+          Monitor system status, database connectivity, and LLM availability. Check component health and troubleshoot issues.
+        </div>
+        <div class="card-actions">
+          <a href="/health" class="action-link" target="_blank">
+            <i class="fas fa-stethoscope"></i>
+            <span>Health Check</span>
+          </a>
+          <a href="/debug/database" class="action-link" target="_blank">
+            <i class="fas fa-database"></i>
+            <span>Database Debug</span>
+          </a>
+          <a href="/stats" class="action-link" target="_blank">
+            <i class="fas fa-chart-pie"></i>
+            <span>System Statistics</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- API Documentation Card -->
+      <div class="admin-card">
+        <div class="card-header">
+          <div class="card-icon">
+            <i class="fas fa-book"></i>
+          </div>
+          <div class="card-title">API Documentation</div>
+        </div>
+        <div class="card-description">
+          Interactive API documentation with endpoint testing capabilities. Explore available endpoints and their parameters.
+        </div>
+        <div class="card-actions">
+          <a href="/docs" class="action-link" target="_blank">
+            <i class="fas fa-external-link-alt"></i>
+            <span>Open API Docs</span>
+          </a>
+          <a href="/redoc" class="action-link" target="_blank">
+            <i class="fas fa-file-alt"></i>
+            <span>ReDoc Documentation</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Debug Tools Card -->
+      <div class="admin-card">
+        <div class="card-header">
+          <div class="card-icon">
+            <i class="fas fa-bug"></i>
+          </div>
+          <div class="card-title">Debug Tools</div>
+        </div>
+        <div class="card-description">
+          Advanced debugging tools for search functionality, embeddings, and system troubleshooting.
+        </div>
+        <div class="card-actions">
+          <a href="/debug/search" class="action-link" target="_blank">
+            <i class="fas fa-search"></i>
+            <span>Search Debug</span>
+          </a>
+          <a href="/debug/keyword-search" class="action-link" target="_blank">
+            <i class="fas fa-key"></i>
+            <span>Keyword Search Debug</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Security Warning Card -->
+      <div class="admin-card warning-card">
+        <div class="card-header">
+          <div class="card-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <div class="card-title">Security Notice</div>
+        </div>
+        <div class="card-description">
+          This admin panel provides access to sensitive system information. Ensure this URL is not shared with unauthorized users and consider implementing proper authentication.
+        </div>
+        <div class="card-actions">
+          <a href="#" class="action-link" onclick="alert('Consider implementing authentication middleware or IP restrictions for production use.')">
+            <i class="fas fa-info-circle"></i>
+            <span>Security Recommendations</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

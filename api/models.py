@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
 
@@ -16,6 +16,7 @@ class GenerateResponse(BaseModel):
     text: Optional[str] = Field(None, description="Generated text if successful")
     reason: Optional[str] = Field(None, description="Error reason if not successful")
     model: Optional[str] = Field(None, description="Model used for generation")
+    sources: Optional[List[Dict[str, Any]]] = Field(None, description="Source documents used for the response")
 
 
 class HealthResponse(BaseModel):

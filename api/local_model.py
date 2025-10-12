@@ -1,5 +1,3 @@
-import asyncio
-import json
 from typing import Optional, Dict, Any
 import aiohttp
 from .config import get_settings
@@ -23,23 +21,25 @@ class GenerationError(OllamaError):
 
 class LocalLLM:
     """Asynchronous client for local Ollama instance."""
-    
+
     def __init__(self):
         self.settings = get_settings()
         self._session: Optional[aiohttp.ClientSession] = None
-    
+
     async def _ensure_session(self) -> aiohttp.ClientSession:
         """Ensure we have an active aiohttp session."""
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            # Create session with timeout to prevent hanging
+            timeout = aiohttp.ClientTimeout(total=300)  # 5 minutes
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
-    
+
     async def close(self):
         """Close the aiohttp session."""
         if self._session and not self._session.closed:
             await self._session.close()
             self._session = None
-    
+
     async def check_model(self, model_name: str) -> bool:
         """Check if a model is available locally."""
         session = await self._ensure_session()
@@ -51,7 +51,7 @@ class LocalLLM:
                 return any(model["name"] == model_name for model in data["models"])
         except aiohttp.ClientError:
             return False
-    
+
     async def generate(self, request: GenerateRequest, model: Optional[str] = None) -> Dict[str, Any]:
         """Generate text using the local Ollama instance.
         
@@ -67,13 +67,13 @@ class LocalLLM:
             GenerationError: If the generation request fails
         """
         model_name = model or self.settings.default_model
-        
+
         # Verify model availability
         if not await self.check_model(model_name):
             raise ModelNotFoundError(f"Model {model_name} not found")
-        
+
         session = await self._ensure_session()
-        
+
         # Prepare request payload
         payload = {
             "model": model_name,
@@ -84,10 +84,10 @@ class LocalLLM:
                 "num_predict": request.max_tokens,
             }
         }
-        
+
         if request.system_prompt:
             payload["system"] = request.system_prompt
-        
+
         try:
             async with session.post(
                 f"{self.settings.ollama_host}/api/generate",
@@ -96,17 +96,17 @@ class LocalLLM:
                 if resp.status != 200:
                     error_text = await resp.text()
                     raise GenerationError(f"Generation failed: {error_text}")
-                
+
                 data = await resp.json()
                 return {
                     "ok": True,
                     "text": data.get("response", ""),
                     "model": model_name
                 }
-                
+
         except aiohttp.ClientError as e:
             raise GenerationError(f"Failed to communicate with Ollama: {str(e)}")
-        
+
     async def get_models(self) -> list[str]:
         """Get list of available models."""
         session = await self._ensure_session()

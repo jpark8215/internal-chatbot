@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Query History - Knowledge Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --bg-tertiary: #f1f5f9;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --border-light: #e2e8f0;
+      --border-medium: #cbd5e1;
+      --accent-primary: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-light: #dbeafe;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+    }
+
+    [data-theme="dark"] {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --border-light: #334155;
+      --border-medium: #475569;
+      --accent-primary: #60a5fa;
+      --accent-hover: #3b82f6;
+      --accent-light: #1e3a8a;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --error: #f87171;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding: 1.5rem 2rem;
+      background: var(--bg-primary);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-light);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.2rem;
+    }
+
+    .header-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .header-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .nav-link {
+      padding: 0.5rem 1rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+
+    .nav-link:hover {
+      background: var(--accent-light);
+      color: var(--accent-primary);
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+
+    @media (min-width: 1024px) {
+      .main-content {
+        grid-template-columns: 300px 1fr;
+      }
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .stats-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-xl);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .stats-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .stat-item:last-child {
+      border-bottom: none;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .stat-value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .content-section {
+      background: var(--bg-primary);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border-light);
+      overflow: hidden;
+    }
+
+    .section-header {
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid var(--border-light);
+      background: var(--bg-secondary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .section-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .search-input {
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      width: 200px;
+    }
+
+    .search-btn {
+      padding: 0.5rem 1rem;
+      background: var(--accent-primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+
+    .content-body {
+      padding: 2rem;
+    }
+
+    .query-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .query-item {
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      background: var(--bg-secondary);
+      transition: all 0.2s ease;
+    }
+
+    .query-item:hover {
+      box-shadow: var(--shadow-md);
+    }
+
+    .query-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .query-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .query-time {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .query-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+    }
+
+    .status-success {
+      color: var(--success);
+    }
+
+    .status-error {
+      color: var(--error);
+    }
+
+    .query-text {
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      padding: 1rem;
+      background: var(--bg-primary);
+      border-radius: var(--radius-md);
+      border-left: 4px solid var(--accent-primary);
+    }
+
+    .response-text {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      background: var(--bg-tertiary);
+      padding: 1rem;
+      border-radius: var(--radius-md);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .sources-list {
+      margin-top: 1rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+
+    .loading-spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border-light);
+      border-top: 2px solid var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 0.5rem;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem 0.5rem;
+      }
+
+      .header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+        padding: 1rem;
+      }
+
+      .search-box {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .search-input {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div>
+          <h1 class="header-title">Query History</h1>
+          <p class="header-subtitle">Review past questions and responses</p>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a href="/" class="nav-link">
+          <i class="fas fa-home"></i> Home
+        </a>
+        <a href="/docs" class="nav-link" target="_blank">
+          <i class="fas fa-book"></i> API Docs
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <!-- Usage Stats -->
+        <div class="stats-card">
+          <h3 class="stats-title">
+            <i class="fas fa-chart-bar"></i>
+            Usage Statistics
+          </h3>
+          <div id="statsContent">
+            <div class="loading">
+              <div class="loading-spinner"></div>
+              Loading stats...
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Queries -->
+        <div class="stats-card">
+          <h3 class="stats-title">
+            <i class="fas fa-fire"></i>
+            Popular Queries
+          </h3>
+          <div id="topQueries">
+            <div class="loading">
+              <div class="loading-spinner"></div>
+              Loading queries...
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- History Section -->
+      <section class="content-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <i class="fas fa-list"></i>
+            Recent Queries
+          </h2>
+          <div class="search-box">
+            <input type="text" id="searchInput" class="search-input" placeholder="Search queries...">
+            <button id="searchBtn" class="search-btn">
+              <i class="fas fa-search"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="content-body">
+          <div id="queryList" class="query-list">
+            <div class="loading">
+              <div class="loading-spinner"></div>
+              Loading query history...
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // Load and display data
+    async function loadAnalytics() {
+      try {
+        const response = await fetch('/api/analytics?days=30');
+        const data = await response.json();
+
+        if (data.error) {
+          document.getElementById('statsContent').innerHTML = `<div style="color: var(--error);">Error: ${data.error}</div>`;
+          return;
+        }
+
+        // Display usage stats
+        const stats = data.usage_stats;
+        const statsHtml = `
+          <div class="stat-item">
+            <span class="stat-label">Total Queries</span>
+            <span class="stat-value">${stats.total_queries}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Unique Sessions</span>
+            <span class="stat-value">${stats.unique_sessions}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Success Rate</span>
+            <span class="stat-value">${stats.success_rate.toFixed(1)}%</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Avg Response Time</span>
+            <span class="stat-value">${stats.avg_response_time.toFixed(0)}ms</span>
+          </div>
+        `;
+        document.getElementById('statsContent').innerHTML = statsHtml;
+
+        // Display top queries
+        const topQueries = data.top_queries.slice(0, 5);
+        const queriesHtml = topQueries.map(q => `
+          <div class="stat-item">
+            <span class="stat-label" title="${q.query_text}">${q.query_text.substring(0, 30)}${q.query_text.length > 30 ? '...' : ''}</span>
+            <span class="stat-value">${q.query_count}</span>
+          </div>
+        `).join('');
+        document.getElementById('topQueries').innerHTML = queriesHtml || '<div class="empty-state">No queries yet</div>';
+
+      } catch (error) {
+        document.getElementById('statsContent').innerHTML = `<div style="color: var(--error);">Failed to load analytics</div>`;
+        console.error('Failed to load analytics:', error);
+      }
+    }
+
+    async function loadHistory() {
+      try {
+        const response = await fetch('/api/history?limit=50');
+        const data = await response.json();
+
+        if (data.error) {
+          document.getElementById('queryList').innerHTML = `<div style="color: var(--error);">Error: ${data.error}</div>`;
+          return;
+        }
+
+        const queries = data.queries;
+
+        if (queries.length === 0) {
+          document.getElementById('queryList').innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-search"></i>
+              <p>No queries found</p>
+            </div>
+          `;
+          return;
+        }
+
+        const queriesHtml = queries.map(q => {
+          const createdAt = new Date(q.created_at);
+          const timeAgo = getTimeAgo(createdAt);
+
+          return `
+            <div class="query-item">
+              <div class="query-header">
+                <div class="query-meta">
+                  <div class="query-time">${timeAgo}</div>
+                  <div class="query-status ${q.success ? 'status-success' : 'status-error'}">
+                    <i class="fas fa-${q.success ? 'check-circle' : 'exclamation-circle'}"></i>
+                    ${q.success ? 'Success' : 'Error'}
+                    ${q.response_time_ms ? `• ${q.response_time_ms}ms` : ''}
+                  </div>
+                </div>
+              </div>
+              <div class="query-text">${q.query_text}</div>
+              <div class="response-text">${q.response_text || 'No response'}</div>
+              ${q.sources_used && q.sources_used.length > 0 ? `
+                <div class="sources-list">
+                  <strong>Sources:</strong> ${q.sources_used.map(s => s.source_file || 'Unknown').join(', ')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+
+        document.getElementById('queryList').innerHTML = queriesHtml;
+
+      } catch (error) {
+        document.getElementById('queryList').innerHTML = `<div style="color: var(--error);">Failed to load history</div>`;
+        console.error('Failed to load history:', error);
+      }
+    }
+
+    async function searchHistory(query) {
+      if (!query.trim()) {
+        loadHistory();
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/search-history?q=${encodeURIComponent(query)}&limit=20`);
+        const data = await response.json();
+
+        if (data.error) {
+          document.getElementById('queryList').innerHTML = `<div style="color: var(--error);">Error: ${data.error}</div>`;
+          return;
+        }
+
+        const results = data.results;
+
+        if (results.length === 0) {
+          document.getElementById('queryList').innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-search"></i>
+              <p>No results found for "${query}"</p>
+            </div>
+          `;
+          return;
+        }
+
+        const resultsHtml = results.map(r => {
+          const createdAt = new Date(r.created_at);
+          const timeAgo = getTimeAgo(createdAt);
+
+          return `
+            <div class="query-item">
+              <div class="query-header">
+                <div class="query-meta">
+                  <div class="query-time">${timeAgo}</div>
+                </div>
+              </div>
+              <div class="query-text">${r.query_text}</div>
+              <div class="response-text">${r.response_text || 'No response'}</div>
+            </div>
+          `;
+        }).join('');
+
+        document.getElementById('queryList').innerHTML = resultsHtml;
+
+      } catch (error) {
+        document.getElementById('queryList').innerHTML = `<div style="color: var(--error);">Search failed</div>`;
+        console.error('Search failed:', error);
+      }
+    }
+
+    function getTimeAgo(date) {
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+      if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+      if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+      return date.toLocaleDateString();
+    }
+
+    // Event listeners
+    document.getElementById('searchBtn').addEventListener('click', () => {
+      const query = document.getElementById('searchInput').value;
+      searchHistory(query);
+    });
+
+    document.getElementById('searchInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        const query = e.target.value;
+        searchHistory(query);
+      }
+    });
+
+    // Load initial data
+    loadAnalytics();
+    loadHistory();
+  </script>
+</body>
+
+</html>
