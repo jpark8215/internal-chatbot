@@ -35,7 +35,34 @@ class DocumentFileHandler(FileSystemEventHandler):
     def on_moved(self, event):
         """Handle file move events (like drag & drop)."""
         if not event.is_directory:
+            # Handle the old file as deleted
+            self._handle_file_deletion(Path(event.src_path))
+            # Handle the new file as created
             self._process_file(Path(event.dest_path))
+
+    def on_deleted(self, event):
+        """Handle file deletion events."""
+        if not event.is_directory:
+            self._handle_file_deletion(Path(event.src_path))
+
+    def _handle_file_deletion(self, file_path: Path):
+        """Handle deletion of a file by removing its documents from the database."""
+        # Check if it was a supported file type
+        if file_path.suffix.lower() not in self.supported_extensions:
+            return
+
+        try:
+            dao = get_dao()
+            source_file = str(file_path.absolute())
+            deleted_count = dao.delete_documents_by_source(source_file)
+            
+            if deleted_count > 0:
+                logger.info(f"[file-watcher] Removed {deleted_count} chunks for deleted file: {file_path}")
+            else:
+                logger.debug(f"[file-watcher] No chunks found for deleted file: {file_path}")
+                
+        except Exception as e:
+            logger.error(f"[file-watcher] Failed to handle deletion of {file_path}: {e}")
 
     def _process_file(self, file_path: Path):
         """Process a new file for ingestion."""

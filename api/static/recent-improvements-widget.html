@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recent Improvements Widget</title>
+    <style>
+        .improvements-widget {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            max-width: 600px;
+        }
+
+        .improvements-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .improvements-header h3 {
+            color: #1e293b;
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .improvements-header .icon {
+            margin-right: 8px;
+            font-size: 1.2rem;
+        }
+
+        .improvement-item {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+
+        .improvement-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .improvement-type {
+            display: inline-block;
+            background: #4f46e5;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-right: 8px;
+        }
+
+        .improvement-description {
+            color: #374151;
+            line-height: 1.4;
+            margin-top: 5px;
+        }
+
+        .improvement-date {
+            color: #64748b;
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+
+        .no-improvements {
+            text-align: center;
+            color: #64748b;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .view-all-link {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .view-all-link a {
+            color: #4f46e5;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .view-all-link a:hover {
+            text-decoration: underline;
+        }
+
+        .loading {
+            text-align: center;
+            color: #64748b;
+            padding: 20px;
+        }
+
+        .error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="improvements-widget" id="improvements-widget">
+        <div class="improvements-header">
+            <span class="icon">🚀</span>
+            <h3>Recent Improvements</h3>
+        </div>
+        
+        <div id="loading" class="loading">
+            Loading recent improvements...
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="improvements-content" style="display: none;">
+            <div id="improvements-list">
+                <!-- Improvements will be populated here -->
+            </div>
+            
+            <div class="view-all-link">
+                <a href="/feedback-impact" target="_blank">View Full Impact Dashboard →</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadRecentImprovements() {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const content = document.getElementById('improvements-content');
+            const list = document.getElementById('improvements-list');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            content.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/feedback/recent-improvements?limit=3');
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load improvements');
+                }
+
+                const data = await response.json();
+                const improvements = data.improvements || [];
+
+                if (improvements.length === 0) {
+                    list.innerHTML = '<div class="no-improvements">No recent improvements to display.</div>';
+                } else {
+                    list.innerHTML = improvements.map(improvement => `
+                        <div class="improvement-item">
+                            <div>
+                                <span class="improvement-type">${formatActionType(improvement.action_type)}</span>
+                                <span class="improvement-date">${formatDate(improvement.implemented_at)}</span>
+                            </div>
+                            <div class="improvement-description">
+                                ${improvement.description || 'System improvement based on user feedback'}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                loading.style.display = 'none';
+                content.style.display = 'block';
+
+            } catch (err) {
+                console.error('Error loading improvements:', err);
+                loading.style.display = 'none';
+                error.style.display = 'block';
+                error.textContent = 'Failed to load recent improvements.';
+            }
+        }
+
+        function formatActionType(actionType) {
+            const types = {
+                'source_boost': 'Source Boost',
+                'prompt_update': 'Prompt Update',
+                'document_update': 'Document Update',
+                'strategy_change': 'Strategy Change'
+            };
+            return types[actionType] || actionType;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'Recently';
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffTime = Math.abs(now - date);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 1) return 'Yesterday';
+            if (diffDays < 7) return `${diffDays} days ago`;
+            if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
+            return date.toLocaleDateString();
+        }
+
+        // Load improvements when the widget loads
+        document.addEventListener('DOMContentLoaded', loadRecentImprovements);
+
+        // Refresh every 5 minutes
+        setInterval(loadRecentImprovements, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
+</content>
+</invoke>

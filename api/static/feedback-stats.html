@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Statistics - Knowledge Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+            --border-medium: #cbd5e1;
+            --accent-primary: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-light: #dbeafe;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --error: #ef4444;
+            --error-light: #fee2e2;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem 2rem;
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-link {
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-link:hover {
+            background: var(--accent-light);
+            color: var(--accent-primary);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .time-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-primary);
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-light);
+        }
+
+        .time-selector select {
+            border: none;
+            background: none;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        .refresh-btn {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .refresh-btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            transition: all 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .stat-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .stat-icon.primary { background: var(--accent-light); color: var(--accent-primary); }
+        .stat-icon.success { background: var(--success-light); color: var(--success); }
+        .stat-icon.warning { background: var(--warning-light); color: var(--warning); }
+        .stat-icon.error { background: var(--error-light); color: var(--error); }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-change {
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .stat-change.positive { color: var(--success); }
+        .stat-change.negative { color: var(--error); }
+        .stat-change.neutral { color: var(--text-muted); }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+        }
+
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .recent-feedback {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+        }
+
+        .feedback-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-light);
+            transition: all 0.2s ease;
+        }
+
+        .feedback-item:last-child {
+            border-bottom: none;
+        }
+
+        .feedback-item:hover {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+        }
+
+        .feedback-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .feedback-rating {
+            display: flex;
+            gap: 0.125rem;
+        }
+
+        .star {
+            color: #fbbf24;
+            font-size: 0.875rem;
+        }
+
+        .star.empty {
+            color: var(--border-medium);
+        }
+
+        .feedback-query {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .feedback-comment {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .feedback-date {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .loading i {
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 2rem;
+        }
+
+        .empty-state i {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 0.875rem;
+        }
+
+        .feedback-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        /* Responsive design for navigation */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem 0.5rem;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+                padding: 1rem;
+            }
+
+            .nav-links {
+                justify-content: center;
+            }
+        }
+
+        .error-message {
+            background: var(--error-light);
+            color: var(--error);
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--error);
+            margin: 1rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .stat-value {
+                font-size: 1.875rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-left">
+                <div>
+                    <h1 class="header-title">
+                        <i class="fas fa-chart-line"></i>
+                        Feedback Statistics
+                    </h1>
+                    <p class="header-subtitle">Monitor user feedback trends and system performance metrics</p>
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="/admin" class="nav-link">
+                    <i class="fas fa-arrow-left"></i> Back to Admin
+                </a>
+                <a href="/" class="nav-link">
+                    <i class="fas fa-home"></i> Home
+                </a>
+            </div>
+        </header>
+
+        <div class="controls">
+            <div class="time-selector">
+                <i class="fas fa-calendar-alt"></i>
+                <label for="timeRange">Time Range:</label>
+                <select id="timeRange">
+                    <option value="7">Last 7 days</option>
+                    <option value="30" selected>Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="365">Last year</option>
+                </select>
+            </div>
+            <button class="refresh-btn" onclick="loadStats()">
+                <i class="fas fa-sync-alt"></i>
+                Refresh Data
+            </button>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats cards will be populated here -->
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3 class="chart-title">
+                    <i class="fas fa-chart-area"></i>
+                    Feedback Trends
+                </h3>
+                <div class="chart-container">
+                    <canvas id="trendsChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h3 class="chart-title">
+                    <i class="fas fa-star"></i>
+                    Rating Distribution
+                </h3>
+                <div class="chart-container">
+                    <canvas id="ratingChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="recent-feedback">
+            <h3 class="chart-title">
+                <i class="fas fa-comments"></i>
+                Recent Feedback
+            </h3>
+            <div id="recentFeedback">
+                <div class="loading">
+                    <i class="fas fa-spinner"></i>
+                    Loading recent feedback...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let trendsChart, ratingChart;
+
+        async function loadStats() {
+            const timeRange = document.getElementById('timeRange').value;
+            
+            try {
+                // Load statistics
+                const statsResponse = await fetch(`/api/feedback/stats?days=${timeRange}`);
+                const statsData = await statsResponse.json();
+                
+                if (statsData.error) {
+                    throw new Error(statsData.error);
+                }
+                
+                displayStats(statsData.stats);
+                
+                // Try to load real trend data, fallback to basic chart if not available
+                try {
+                    const trendsResponse = await fetch(`/api/feedback/trends?days=${timeRange}`);
+                    const trendsData = await trendsResponse.json();
+                    
+                    if (!trendsData.error) {
+                        updateCharts(statsData.stats, trendsData.trend_data);
+                    } else {
+                        updateCharts(statsData.stats);
+                    }
+                } catch (trendError) {
+                    // Fallback to basic chart if trends endpoint doesn't exist yet
+                    console.log('Trends endpoint not available, using basic chart');
+                    updateCharts(statsData.stats);
+                }
+                
+                // Load real recent feedback
+                await displayRecentFeedback();
+                
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Failed to load statistics: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function displayStats(stats) {
+            const statsGrid = document.getElementById('statsGrid');
+            
+            const cards = [
+                {
+                    title: 'Total Feedback',
+                    value: stats.total_feedback || 0,
+                    icon: 'fas fa-comments',
+                    iconClass: 'primary'
+                },
+                {
+                    title: 'Average Rating',
+                    value: (stats.avg_rating || 0).toFixed(1),
+                    icon: 'fas fa-star',
+                    iconClass: 'warning'
+                },
+                {
+                    title: 'Accuracy Rate',
+                    value: `${(stats.accuracy_rate || 0).toFixed(1)}%`,
+                    icon: 'fas fa-check-circle',
+                    iconClass: 'success'
+                },
+                {
+                    title: 'Helpfulness Rate',
+                    value: `${(stats.helpfulness_rate || 0).toFixed(1)}%`,
+                    icon: 'fas fa-thumbs-up',
+                    iconClass: 'success'
+                }
+            ];
+
+            statsGrid.innerHTML = cards.map(card => `
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-title">${card.title}</div>
+                        <div class="stat-icon ${card.iconClass}">
+                            <i class="${card.icon}"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value">${card.value}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateCharts(stats, trendData = null) {
+            // Trends Chart
+            const trendsCtx = document.getElementById('trendsChart').getContext('2d');
+            
+            if (trendsChart) {
+                trendsChart.destroy();
+            }
+            
+            // Use real trend data if available, otherwise show empty chart
+            const chartData = trendData || { labels: ['No data'], data: [0] };
+            
+            trendsChart = new Chart(trendsCtx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'Feedback Count',
+                        data: chartData.data,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#f1f5f9'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Rating Distribution Chart
+            const ratingCtx = document.getElementById('ratingChart').getContext('2d');
+            
+            if (ratingChart) {
+                ratingChart.destroy();
+            }
+            
+            // Use real rating distribution data
+            const ratingDist = stats.rating_distribution || {};
+            
+            ratingChart = new Chart(ratingCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['5 Stars', '4 Stars', '3 Stars', '2 Stars', '1 Star'],
+                    datasets: [{
+                        data: [
+                            ratingDist['5'] || 0,
+                            ratingDist['4'] || 0,
+                            ratingDist['3'] || 0,
+                            ratingDist['2'] || 0,
+                            ratingDist['1'] || 0
+                        ],
+                        backgroundColor: [
+                            '#10b981',
+                            '#3b82f6',
+                            '#f59e0b',
+                            '#ef4444',
+                            '#6b7280'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        async function displayRecentFeedback() {
+            const recentFeedback = document.getElementById('recentFeedback');
+            
+            try {
+                // Load real recent feedback from dedicated endpoint
+                const response = await fetch('/api/feedback/recent?limit=10');
+                const data = await response.json();
+                
+                if (data.error) {
+                    recentFeedback.innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Failed to load recent feedback: ${data.error}
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const feedbackList = data.feedback || [];
+                
+                if (feedbackList.length === 0) {
+                    recentFeedback.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-comments"></i>
+                            <p>No feedback entries found. Users haven't submitted any feedback yet.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                recentFeedback.innerHTML = feedbackList.map(feedback => {
+                    const date = feedback.created_at ? new Date(feedback.created_at).toLocaleDateString() : 'Unknown date';
+                    const rating = feedback.rating || 0;
+                    
+                    return `
+                        <div class="feedback-item">
+                            <div class="feedback-header">
+                                <div class="feedback-rating">
+                                    ${Array.from({length: 5}, (_, i) => 
+                                        `<span class="star ${i < rating ? '' : 'empty'}">★</span>`
+                                    ).join('')}
+                                </div>
+                                <div class="feedback-date">${date}</div>
+                            </div>
+                            <div class="feedback-query">${feedback.query_text || 'No query text'}</div>
+                            ${feedback.comments ? `<div class="feedback-comment">"${feedback.comments}"</div>` : ''}
+                            ${feedback.is_accurate !== null ? `<div class="feedback-meta">Accurate: ${feedback.is_accurate ? '✅' : '❌'}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error('Failed to load recent feedback:', error);
+                recentFeedback.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Failed to load recent feedback. Please try again later.
+                    </div>
+                `;
+            }
+        }
+
+
+
+        // Event listeners
+        document.getElementById('timeRange').addEventListener('change', loadStats);
+
+        // Initial load
+        loadStats();
+    </script>
+</body>
+</html>

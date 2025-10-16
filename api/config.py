@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     db_name: Optional[str] = None
     db_user: Optional[str] = None
     db_password: Optional[str] = None
-    database_pool_size: int = 10
-    database_max_overflow: int = 20
+    database_pool_size: int = 50
+    database_max_overflow: int = 100
 
     # Auto-ingest configuration
     auto_ingest_on_start: bool = True
@@ -41,10 +41,23 @@ class Settings(BaseSettings):
     # Rate limiting (removed for simplicity)
 
     # Performance configuration
-    embedding_batch_size: int = 10
-    max_concurrent_requests: int = 5
+    embedding_batch_size: int = 50
+    max_concurrent_requests: int = 20
     chunk_size: int = 1000
     chunk_overlap: int = 200
+    
+    # Response time optimizations
+    enable_fast_mode: bool = True
+    skip_quality_indicators: bool = False
+    enable_query_parallelization: bool = True
+    database_query_timeout: int = 5  # seconds
+    llm_generation_timeout: int = 30  # seconds
+    
+    # Caching optimizations
+    enable_embedding_cache: bool = True
+    embedding_cache_size: int = 1000
+    enable_query_result_cache: bool = True
+    query_result_cache_ttl: int = 300  # 5 minutes
 
     # Monitoring (removed for simplicity)
 
@@ -55,8 +68,8 @@ class Settings(BaseSettings):
     enable_incremental_ingestion: bool = True
     
     # Response caching
-    cache_max_size: int = 1000
-    cache_ttl_seconds: int = 3600  # 1 hour
+    cache_max_size: int = 10000
+    cache_ttl_seconds: int = 7200  
     enable_response_cache: bool = True
 
 

@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alert Management - Feedback System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #1e293b;
+        }
+
+        .alert-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .summary-item {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
+            background: #f8fafc;
+        }
+
+        .summary-item.critical {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+        }
+
+        .summary-item.high {
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+        }
+
+        .summary-item.medium {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+        }
+
+        .summary-item.low {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+        }
+
+        .summary-number {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .summary-label {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .filter-group label {
+            font-weight: 500;
+            color: #374151;
+        }
+
+        select, button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            background: white;
+            cursor: pointer;
+        }
+
+        button {
+            background: #3b82f6;
+            color: white;
+            border: 1px solid #3b82f6;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+
+        button.secondary {
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        button.secondary:hover {
+            background: #f9fafb;
+        }
+
+        button.danger {
+            background: #ef4444;
+            border-color: #ef4444;
+        }
+
+        button.danger:hover {
+            background: #dc2626;
+        }
+
+        button.success {
+            background: #10b981;
+            border-color: #10b981;
+        }
+
+        button.success:hover {
+            background: #059669;
+        }
+
+        .alert-list {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .alert-item {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            transition: background-color 0.2s;
+        }
+
+        .alert-item:last-child {
+            border-bottom: none;
+        }
+
+        .alert-item:hover {
+            background: #f8fafc;
+        }
+
+        .alert-item.selected {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .alert-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .alert-meta {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+
+        .severity-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .severity-critical {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .severity-high {
+            background: #fff7ed;
+            color: #ea580c;
+            border: 1px solid #fed7aa;
+        }
+
+        .severity-medium {
+            background: #fffbeb;
+            color: #d97706;
+            border: 1px solid #fde68a;
+        }
+
+        .severity-low {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .status-acknowledged {
+            background: #fffbeb;
+            color: #d97706;
+        }
+
+        .status-resolved {
+            background: #f0fdf4;
+            color: #16a34a;
+        }
+
+        .alert-description {
+            color: #4b5563;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .alert-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .alert-actions button {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+        }
+
+        .bulk-actions {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .bulk-actions.show {
+            display: block;
+        }
+
+        .bulk-actions-content {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .checkbox {
+            width: 1rem;
+            height: 1rem;
+            margin-right: 0.75rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+
+        .error {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border: 1px solid #fecaca;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+
+        .empty-state h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: #374151;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filter-group {
+                justify-content: space-between;
+            }
+            
+            .alert-header {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .alert-meta {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Alert Management</h1>
+        <p>Monitor and manage feedback system alerts</p>
+    </div>
+
+    <div class="container">
+        <div class="dashboard-grid">
+            <div class="card">
+                <h2>Alert Summary</h2>
+                <div class="alert-summary" id="alertSummary">
+                    <div class="summary-item critical">
+                        <div class="summary-number" id="criticalCount">-</div>
+                        <div class="summary-label">Critical</div>
+                    </div>
+                    <div class="summary-item high">
+                        <div class="summary-number" id="highCount">-</div>
+                        <div class="summary-label">High</div>
+                    </div>
+                    <div class="summary-item medium">
+                        <div class="summary-number" id="mediumCount">-</div>
+                        <div class="summary-label">Medium</div>
+                    </div>
+                    <div class="summary-item low">
+                        <div class="summary-number" id="lowCount">-</div>
+                        <div class="summary-label">Low</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Quick Actions</h2>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button onclick="runAlertCheck()">
+                        <span id="checkButtonText">Run Alert Check</span>
+                    </button>
+                    <button class="secondary" onclick="refreshAlerts()">Refresh Alerts</button>
+                    <button class="secondary" onclick="showMonitoringStatus()">Monitoring Status</button>
+                </div>
+                <div id="quickActionResult" style="margin-top: 1rem; display: none;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Alert Management</h2>
+            
+            <div class="controls">
+                <div class="filter-group">
+                    <label for="statusFilter">Status:</label>
+                    <select id="statusFilter" onchange="filterAlerts()">
+                        <option value="">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="acknowledged">Acknowledged</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="severityFilter">Severity:</label>
+                    <select id="severityFilter" onchange="filterAlerts()">
+                        <option value="">All Severities</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                
+                <button class="secondary" onclick="toggleSelectAll()">
+                    <span id="selectAllText">Select All</span>
+                </button>
+            </div>
+
+            <div class="bulk-actions" id="bulkActions">
+                <div class="bulk-actions-content">
+                    <span id="selectedCount">0 alerts selected</span>
+                    <button class="success" onclick="bulkAcknowledge()">Acknowledge Selected</button>
+                    <button onclick="bulkResolve()">Resolve Selected</button>
+                    <button class="secondary" onclick="clearSelection()">Clear Selection</button>
+                </div>
+            </div>
+
+            <div id="alertsContainer">
+                <div class="loading">Loading alerts...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let alerts = [];
+        let selectedAlerts = new Set();
+        let allSelected = false;
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAlerts();
+            loadAlertSummary();
+        });
+
+        async function loadAlerts() {
+            try {
+                const statusFilter = document.getElementById('statusFilter').value;
+                const severityFilter = document.getElementById('severityFilter').value;
+                
+                let url = '/api/alerts?limit=100';
+                if (statusFilter) url += `&status=${statusFilter}`;
+                if (severityFilter) url += `&severity=${severityFilter}`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError('Failed to load alerts: ' + data.error);
+                    return;
+                }
+                
+                alerts = data.alerts || [];
+                renderAlerts();
+                
+            } catch (error) {
+                showError('Failed to load alerts: ' + error.message);
+            }
+        }
+
+        async function loadAlertSummary() {
+            try {
+                const response = await fetch('/api/alerts/summary?days=7');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Failed to load alert summary:', data.error);
+                    return;
+                }
+                
+                const summary = data.summary;
+                document.getElementById('criticalCount').textContent = summary.critical_alerts || 0;
+                document.getElementById('highCount').textContent = summary.high_alerts || 0;
+                document.getElementById('mediumCount').textContent = summary.medium_alerts || 0;
+                document.getElementById('lowCount').textContent = summary.low_alerts || 0;
+                
+            } catch (error) {
+                console.error('Failed to load alert summary:', error);
+            }
+        }
+
+        function renderAlerts() {
+            const container = document.getElementById('alertsContainer');
+            
+            if (alerts.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No alerts found</h3>
+                        <p>There are no alerts matching your current filters.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const alertsHtml = alerts.map(alert => `
+                <div class="alert-item ${selectedAlerts.has(alert.id) ? 'selected' : ''}" data-alert-id="${alert.id}">
+                    <div class="alert-header">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                                <input type="checkbox" class="checkbox" 
+                                       ${selectedAlerts.has(alert.id) ? 'checked' : ''}
+                                       onchange="toggleAlertSelection(${alert.id})">
+                                <div class="alert-title">${escapeHtml(alert.title)}</div>
+                            </div>
+                            <div class="alert-meta">
+                                <span class="severity-badge severity-${alert.severity}">${alert.severity}</span>
+                                <span class="status-badge status-${alert.status}">${alert.status}</span>
+                                <span>${alert.alert_type}</span>
+                                <span>${formatDate(alert.created_at)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert-description">
+                        ${escapeHtml(alert.description)}
+                    </div>
+                    
+                    <div class="alert-actions">
+                        ${alert.status === 'active' ? `
+                            <button class="success" onclick="acknowledgeAlert(${alert.id})">Acknowledge</button>
+                            <button onclick="resolveAlert(${alert.id})">Resolve</button>
+                        ` : ''}
+                        ${alert.status === 'acknowledged' ? `
+                            <button onclick="resolveAlert(${alert.id})">Resolve</button>
+                        ` : ''}
+                        <button class="secondary" onclick="showAlertDetails(${alert.id})">View Details</button>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = `<div class="alert-list">${alertsHtml}</div>`;
+            updateBulkActions();
+        }
+
+        function toggleAlertSelection(alertId) {
+            if (selectedAlerts.has(alertId)) {
+                selectedAlerts.delete(alertId);
+            } else {
+                selectedAlerts.add(alertId);
+            }
+            
+            updateBulkActions();
+            renderAlerts();
+        }
+
+        function toggleSelectAll() {
+            if (allSelected) {
+                selectedAlerts.clear();
+                allSelected = false;
+                document.getElementById('selectAllText').textContent = 'Select All';
+            } else {
+                alerts.forEach(alert => selectedAlerts.add(alert.id));
+                allSelected = true;
+                document.getElementById('selectAllText').textContent = 'Deselect All';
+            }
+            
+            updateBulkActions();
+            renderAlerts();
+        }
+
+        function updateBulkActions() {
+            const bulkActions = document.getElementById('bulkActions');
+            const selectedCount = document.getElementById('selectedCount');
+            
+            if (selectedAlerts.size > 0) {
+                bulkActions.classList.add('show');
+                selectedCount.textContent = `${selectedAlerts.size} alert${selectedAlerts.size === 1 ? '' : 's'} selected`;
+            } else {
+                bulkActions.classList.remove('show');
+            }
+        }
+
+        function clearSelection() {
+            selectedAlerts.clear();
+            allSelected = false;
+            document.getElementById('selectAllText').textContent = 'Select All';
+            updateBulkActions();
+            renderAlerts();
+        }
+
+        async function acknowledgeAlert(alertId) {
+            try {
+                const response = await fetch(`/api/alerts/${alertId}/acknowledge?user=admin`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError('Failed to acknowledge alert: ' + data.error);
+                    return;
+                }
+                
+                showSuccess('Alert acknowledged successfully');
+                loadAlerts();
+                loadAlertSummary();
+                
+            } catch (error) {
+                showError('Failed to acknowledge alert: ' + error.message);
+            }
+        }
+
+        async function resolveAlert(alertId) {
+            try {
+                const response = await fetch(`/api/alerts/${alertId}/resolve?user=admin`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError('Failed to resolve alert: ' + data.error);
+                    return;
+                }
+                
+                showSuccess('Alert resolved successfully');
+                loadAlerts();
+                loadAlertSummary();
+                
+            } catch (error) {
+                showError('Failed to resolve alert: ' + error.message);
+            }
+        }
+
+        async function bulkAcknowledge() {
+            if (selectedAlerts.size === 0) return;
+            
+            try {
+                const response = await fetch('/api/alerts/bulk-action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        alert_ids: Array.from(selectedAlerts),
+                        action: 'acknowledge',
+                        user: 'admin'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError('Failed to acknowledge alerts: ' + data.error);
+                    return;
+                }
+                
+                showSuccess(`Successfully acknowledged ${data.successful} alert(s)`);
+                clearSelection();
+                loadAlerts();
+                loadAlertSummary();
+                
+            } catch (error) {
+                showError('Failed to acknowledge alerts: ' + error.message);
+            }
+        }
+
+        async function bulkResolve() {
+            if (selectedAlerts.size === 0) return;
+            
+            try {
+                const response = await fetch('/api/alerts/bulk-action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        alert_ids: Array.from(selectedAlerts),
+                        action: 'resolve',
+                        user: 'admin'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError('Failed to resolve alerts: ' + data.error);
+                    return;
+                }
+                
+                showSuccess(`Successfully resolved ${data.successful} alert(s)`);
+                clearSelection();
+                loadAlerts();
+                loadAlertSummary();
+                
+            } catch (error) {
+                showError('Failed to resolve alerts: ' + error.message);
+            }
+        }
+
+        async function runAlertCheck() {
+            const button = document.getElementById('checkButtonText');
+            const resultDiv = document.getElementById('quickActionResult');
+            
+            button.textContent = 'Running...';
+            resultDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/alerts/check', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError('Failed to run alert check: ' + data.error);
+                    return;
+                }
+                
+                resultDiv.innerHTML = `
+                    <div style="background: #f0fdf4; padding: 1rem; border-radius: 6px; border: 1px solid #bbf7d0;">
+                        <strong>Alert check completed:</strong><br>
+                        Generated ${data.alerts_generated} new alert(s)<br>
+                        Found ${data.critical_alerts} critical alert(s)
+                    </div>
+                `;
+                resultDiv.style.display = 'block';
+                
+                // Refresh the alerts list
+                loadAlerts();
+                loadAlertSummary();
+                
+            } catch (error) {
+                showError('Failed to run alert check: ' + error.message);
+            } finally {
+                button.textContent = 'Run Alert Check';
+            }
+        }
+
+        async function showMonitoringStatus() {
+            const resultDiv = document.getElementById('quickActionResult');
+            
+            try {
+                const response = await fetch('/api/monitoring/status');
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError('Failed to get monitoring status: ' + data.error);
+                    return;
+                }
+                
+                const status = data.system_status;
+                const statusColor = status === 'healthy' ? '#10b981' : status === 'degraded' ? '#f59e0b' : '#ef4444';
+                
+                resultDiv.innerHTML = `
+                    <div style="background: white; padding: 1rem; border-radius: 6px; border: 1px solid #e2e8f0;">
+                        <strong>Monitoring Status:</strong> 
+                        <span style="color: ${statusColor}; font-weight: 600;">${status.toUpperCase()}</span><br>
+                        Service Running: ${data.monitoring_service?.running ? 'Yes' : 'No'}<br>
+                        Last Check: ${data.monitoring_service?.last_check ? formatDate(data.monitoring_service.last_check) : 'Never'}<br>
+                        Check Interval: ${data.monitoring_service?.check_interval_minutes || 'Unknown'} minutes
+                    </div>
+                `;
+                resultDiv.style.display = 'block';
+                
+            } catch (error) {
+                showError('Failed to get monitoring status: ' + error.message);
+            }
+        }
+
+        function filterAlerts() {
+            loadAlerts();
+        }
+
+        function refreshAlerts() {
+            loadAlerts();
+            loadAlertSummary();
+        }
+
+        function showAlertDetails(alertId) {
+            const alert = alerts.find(a => a.id === alertId);
+            if (!alert) return;
+            
+            const details = `
+Alert ID: ${alert.id}
+Type: ${alert.alert_type}
+Severity: ${alert.severity}
+Status: ${alert.status}
+Created: ${formatDate(alert.created_at)}
+${alert.acknowledged_at ? `Acknowledged: ${formatDate(alert.acknowledged_at)} by ${alert.acknowledged_by}` : ''}
+${alert.resolved_at ? `Resolved: ${formatDate(alert.resolved_at)} by ${alert.resolved_by}` : ''}
+
+Description:
+${alert.description}
+
+Trigger Conditions:
+${JSON.stringify(alert.trigger_conditions, null, 2)}
+            `;
+            
+            alert(details);
+        }
+
+        function showError(message) {
+            const container = document.getElementById('alertsContainer');
+            container.innerHTML = `<div class="error">${escapeHtml(message)}</div>` + container.innerHTML;
+        }
+
+        function showSuccess(message) {
+            const container = document.getElementById('alertsContainer');
+            const successDiv = document.createElement('div');
+            successDiv.style.cssText = 'background: #f0fdf4; color: #16a34a; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #bbf7d0;';
+            successDiv.textContent = message;
+            container.insertBefore(successDiv, container.firstChild);
+            
+            setTimeout(() => {
+                successDiv.remove();
+            }, 5000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'Unknown';
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+    </script>
+</body>
+</html>

@@ -114,8 +114,12 @@ class VectorDAO:
                source_file_filter: Optional[str] = None) -> List[Tuple[int, str, float, Optional[str]]]:
         """Return list of (id, content, distance, source_file) ordered by similarity (ASC)."""
         with self.get_connection() as conn:
+            # Set query timeout for faster failure
             with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+                cur.execute("SET statement_timeout = '5s';")  # 5 second timeout
+                
                 if source_file_filter:
+                    # Optimized query with index hints
                     cur.execute(
                         """
                         SELECT id, content, (embedding <-> %s::vector) AS distance, source_file
@@ -127,6 +131,7 @@ class VectorDAO:
                         (query_embedding, source_file_filter, query_embedding, top_k),
                     )
                 else:
+                    # Use LIMIT with index scan for better performance
                     cur.execute(
                         """
                         SELECT id, content, (embedding <-> %s::vector) AS distance, source_file

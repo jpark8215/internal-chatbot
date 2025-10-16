@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Monitoring Dashboard</title>
+    <link rel="stylesheet" href="/static/css/admin-dashboard.css">
+    <style>
+        .monitoring-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #ddd;
+        }
+        
+        .alert-card.critical {
+            border-left-color: #dc3545;
+        }
+        
+        .alert-card.high {
+            border-left-color: #fd7e14;
+        }
+        
+        .alert-card.medium {
+            border-left-color: #ffc107;
+        }
+        
+        .alert-card.low {
+            border-left-color: #28a745;
+        }
+        
+        .alert-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .alert-severity {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .alert-severity.critical {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .alert-severity.high {
+            background: #fd7e14;
+            color: white;
+        }
+        
+        .alert-severity.medium {
+            background: #ffc107;
+            color: black;
+        }
+        
+        .alert-severity.low {
+            background: #28a745;
+            color: white;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .metric-card {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .metric-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-indicator.healthy {
+            background: #28a745;
+        }
+        
+        .status-indicator.degraded {
+            background: #ffc107;
+        }
+        
+        .status-indicator.error {
+            background: #dc3545;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: black;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .improvement-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .improvement-type {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        
+        .impact-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .impact-metric {
+            text-align: center;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .impact-value {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .impact-positive {
+            color: #28a745;
+        }
+        
+        .impact-negative {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Feedback Monitoring Dashboard</h1>
+            <nav class="nav">
+                <a href="/admin">Main Dashboard</a>
+                <a href="/feedback-management">Feedback Management</a>
+                <a href="/analytics-enhanced">Analytics</a>
+                <a href="/monitoring-dashboard" class="active">Monitoring</a>
+            </nav>
+        </header>
+
+        <main class="main-content">
+            <!-- Service Status -->
+            <section class="card">
+                <h2>Monitoring Service Status</h2>
+                <div id="service-status" class="loading">Loading service status...</div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="runImmediateCheck()">Run Check Now</button>
+                    <button class="btn btn-success" onclick="startMonitoring()">Start Service</button>
+                    <button class="btn btn-warning" onclick="stopMonitoring()">Stop Service</button>
+                    <button class="btn btn-primary" onclick="refreshData()">Refresh</button>
+                </div>
+            </section>
+
+            <!-- Current Metrics -->
+            <section class="card">
+                <h2>Current Metrics (Last 24 Hours)</h2>
+                <div id="current-metrics" class="metrics-grid">
+                    <div class="loading">Loading metrics...</div>
+                </div>
+            </section>
+
+            <!-- Active Alerts -->
+            <section class="card">
+                <h2>Active Alerts</h2>
+                <div id="active-alerts" class="loading">Loading alerts...</div>
+            </section>
+
+            <!-- Alert Summary -->
+            <section class="card">
+                <h2>Alert Summary (Last 7 Days)</h2>
+                <div id="alert-summary" class="metrics-grid">
+                    <div class="loading">Loading summary...</div>
+                </div>
+            </section>
+
+            <!-- Recent Improvements -->
+            <section class="card">
+                <h2>Recent Improvements & Impact</h2>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="autoMeasureImprovements()">Auto-Measure Impact</button>
+                    <button class="btn btn-success" onclick="loadRecommendations()">Get Recommendations</button>
+                </div>
+                <div id="improvements" class="loading">Loading improvements...</div>
+            </section>
+
+            <!-- Improvement Recommendations -->
+            <section class="card" id="recommendations-section" style="display: none;">
+                <h2>Improvement Recommendations</h2>
+                <div id="recommendations"></div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        let refreshInterval;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboard();
+            // Auto-refresh every 5 minutes
+            refreshInterval = setInterval(loadDashboard, 5 * 60 * 1000);
+        });
+
+        async function loadDashboard() {
+            await Promise.all([
+                loadServiceStatus(),
+                loadCurrentMetrics(),
+                loadActiveAlerts(),
+                loadAlertSummary(),
+                loadImprovements()
+            ]);
+        }
+
+        async function loadServiceStatus() {
+            try {
+                const response = await fetch('/api/admin/monitoring/status');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('service-status').innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                    return;
+                }
+
+                const status = data.service_status;
+                const health = data.health;
+                
+                const statusHtml = `
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-value">
+                                <span class="status-indicator ${health.system_status}"></span>
+                                ${status.running ? 'Running' : 'Stopped'}
+                            </div>
+                            <div class="metric-label">Service Status</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">${status.check_interval_minutes}m</div>
+                            <div class="metric-label">Check Interval</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">${status.last_check ? new Date(status.last_check).toLocaleTimeString() : 'Never'}</div>
+                            <div class="metric-label">Last Check</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">${status.next_check ? new Date(status.next_check).toLocaleTimeString() : 'N/A'}</div>
+                            <div class="metric-label">Next Check</div>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('service-status').innerHTML = statusHtml;
+            } catch (error) {
+                document.getElementById('service-status').innerHTML = `<div class="error">Error loading service status: ${error.message}</div>`;
+            }
+        }
+
+        async function loadCurrentMetrics() {
+            try {
+                const response = await fetch('/api/admin/monitoring/metrics?hours=24');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('current-metrics').innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                    return;
+                }
+
+                const current = data.current_metrics;
+                const baseline = data.baseline_metrics;
+                
+                const metricsHtml = `
+                    <div class="metric-card">
+                        <div class="metric-value">${current.total_feedback}</div>
+                        <div class="metric-label">Total Feedback</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${current.avg_rating.toFixed(2)}</div>
+                        <div class="metric-label">Avg Rating</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${(current.accuracy_rate * 100).toFixed(1)}%</div>
+                        <div class="metric-label">Accuracy Rate</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${(current.helpfulness_rate * 100).toFixed(1)}%</div>
+                        <div class="metric-label">Helpfulness Rate</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${current.unique_sessions}</div>
+                        <div class="metric-label">Unique Sessions</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${current.avg_quality_score.toFixed(2)}</div>
+                        <div class="metric-label">Quality Score</div>
+                    </div>
+                `;
+                
+                document.getElementById('current-metrics').innerHTML = metricsHtml;
+            } catch (error) {
+                document.getElementById('current-metrics').innerHTML = `<div class="error">Error loading metrics: ${error.message}</div>`;
+            }
+        }
+
+        async function loadActiveAlerts() {
+            try {
+                const response = await fetch('/api/admin/alerts?limit=20');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('active-alerts').innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                    return;
+                }
+
+                const alerts = data.alerts;
+                
+                if (alerts.length === 0) {
+                    document.getElementById('active-alerts').innerHTML = '<p>No active alerts</p>';
+                    return;
+                }
+                
+                const alertsHtml = alerts.map(alert => `
+                    <div class="alert-card ${alert.severity}">
+                        <div class="alert-header">
+                            <h4>${alert.title}</h4>
+                            <span class="alert-severity ${alert.severity}">${alert.severity}</span>
+                        </div>
+                        <p>${alert.description}</p>
+                        <div style="margin-top: 10px;">
+                            <small>Created: ${new Date(alert.created_at).toLocaleString()}</small>
+                            ${alert.acknowledged_by ? `<br><small>Acknowledged by: ${alert.acknowledged_by}</small>` : ''}
+                        </div>
+                        <div style="margin-top: 10px;">
+                            ${alert.status === 'active' ? `
+                                <button class="btn btn-warning" onclick="acknowledgeAlert(${alert.id})">Acknowledge</button>
+                                <button class="btn btn-success" onclick="resolveAlert(${alert.id})">Resolve</button>
+                            ` : alert.status === 'acknowledged' ? `
+                                <button class="btn btn-success" onclick="resolveAlert(${alert.id})">Resolve</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
+                
+                document.getElementById('active-alerts').innerHTML = alertsHtml;
+            } catch (error) {
+                document.getElementById('active-alerts').innerHTML = `<div class="error">Error loading alerts: ${error.message}</div>`;
+            }
+        }
+
+        async function loadAlertSummary() {
+            try {
+                const response = await fetch('/api/admin/alerts/summary?days=7');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('alert-summary').innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                    return;
+                }
+
+                const summary = data.summary;
+                
+                const summaryHtml = `
+                    <div class="metric-card">
+                        <div class="metric-value">${summary.total_alerts}</div>
+                        <div class="metric-label">Total Alerts</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${summary.active_alerts}</div>
+                        <div class="metric-label">Active</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${summary.critical_alerts}</div>
+                        <div class="metric-label">Critical</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${summary.high_alerts}</div>
+                        <div class="metric-label">High Priority</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${summary.resolved_alerts}</div>
+                        <div class="metric-label">Resolved</div>
+                    </div>
+                `;
+                
+                document.getElementById('alert-summary').innerHTML = summaryHtml;
+            } catch (error) {
+                document.getElementById('alert-summary').innerHTML = `<div class="error">Error loading alert summary: ${error.message}</div>`;
+            }
+        }
+
+        async function loadImprovements() {
+            try {
+                const response = await fetch('/api/admin/improvements/summary?days=30');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('improvements').innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                    return;
+                }
+
+                const improvements = data.recent_improvements;
+                const impact = data.impact_summary;
+                
+                let improvementsHtml = `
+                    <div class="metrics-grid" style="margin-bottom: 20px;">
+                        <div class="metric-card">
+                            <div class="metric-value">${impact.improvements_with_metrics}</div>
+                            <div class="metric-label">Measured Improvements</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value ${impact.avg_rating_improvement > 0 ? 'impact-positive' : 'impact-negative'}">
+                                ${impact.avg_rating_improvement > 0 ? '+' : ''}${impact.avg_rating_improvement.toFixed(3)}
+                            </div>
+                            <div class="metric-label">Avg Rating Impact</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value ${impact.avg_accuracy_improvement > 0 ? 'impact-positive' : 'impact-negative'}">
+                                ${impact.avg_accuracy_improvement > 0 ? '+' : ''}${(impact.avg_accuracy_improvement * 100).toFixed(1)}%
+                            </div>
+                            <div class="metric-label">Avg Accuracy Impact</div>
+                        </div>
+                    </div>
+                `;
+                
+                if (improvements.length === 0) {
+                    improvementsHtml += '<p>No recent improvements recorded</p>';
+                } else {
+                    improvementsHtml += improvements.map(improvement => {
+                        const impact = improvement.impact_metrics;
+                        return `
+                            <div class="improvement-card">
+                                <div>
+                                    <span class="improvement-type">${improvement.action_type}</span>
+                                    <strong>${improvement.description}</strong>
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <small>By: ${improvement.created_by} | Implemented: ${new Date(improvement.implemented_at).toLocaleDateString()}</small>
+                                </div>
+                                ${impact ? `
+                                    <div class="impact-metrics">
+                                        <div class="impact-metric">
+                                            <div class="impact-value ${impact.after_avg_rating - impact.before_avg_rating > 0 ? 'impact-positive' : 'impact-negative'}">
+                                                ${impact.before_avg_rating.toFixed(2)} → ${impact.after_avg_rating.toFixed(2)}
+                                            </div>
+                                            <div>Rating</div>
+                                        </div>
+                                        <div class="impact-metric">
+                                            <div class="impact-value ${impact.after_accuracy_rate - impact.before_accuracy_rate > 0 ? 'impact-positive' : 'impact-negative'}">
+                                                ${(impact.before_accuracy_rate * 100).toFixed(1)}% → ${(impact.after_accuracy_rate * 100).toFixed(1)}%
+                                            </div>
+                                            <div>Accuracy</div>
+                                        </div>
+                                        <div class="impact-metric">
+                                            <div class="impact-value">
+                                                ${impact.feedback_count_before} → ${impact.feedback_count_after}
+                                            </div>
+                                            <div>Feedback Count</div>
+                                        </div>
+                                    </div>
+                                ` : '<p><em>Impact not yet measured</em></p>'}
+                            </div>
+                        `;
+                    }).join('');
+                }
+                
+                document.getElementById('improvements').innerHTML = improvementsHtml;
+            } catch (error) {
+                document.getElementById('improvements').innerHTML = `<div class="error">Error loading improvements: ${error.message}</div>`;
+            }
+        }
+
+        async function loadRecommendations() {
+            try {
+                const response = await fetch('/api/admin/improvements/recommendations');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('recommendations').innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                    return;
+                }
+
+                const recommendations = data.recommendations;
+                
+                if (recommendations.length === 0) {
+                    document.getElementById('recommendations').innerHTML = '<p>No recommendations available</p>';
+                } else {
+                    const recommendationsHtml = recommendations.map(rec => `
+                        <div class="improvement-card">
+                            <div>
+                                <span class="improvement-type">${rec.type}</span>
+                                <span class="alert-severity ${rec.priority}">${rec.priority}</span>
+                                <strong>${rec.title}</strong>
+                            </div>
+                            <p>${rec.description}</p>
+                            <p><em>Suggested Action: ${rec.suggested_action}</em></p>
+                        </div>
+                    `).join('');
+                    
+                    document.getElementById('recommendations').innerHTML = recommendationsHtml;
+                }
+                
+                document.getElementById('recommendations-section').style.display = 'block';
+            } catch (error) {
+                document.getElementById('recommendations').innerHTML = `<div class="error">Error loading recommendations: ${error.message}</div>`;
+            }
+        }
+
+        // Action functions
+        async function runImmediateCheck() {
+            try {
+                const response = await fetch('/api/admin/monitoring/check', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`Monitoring check completed. Generated ${data.alerts_generated} alerts.`);
+                    loadDashboard();
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error running check: ${error.message}`);
+            }
+        }
+
+        async function startMonitoring() {
+            try {
+                const response = await fetch('/api/admin/monitoring/start', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Monitoring service started');
+                    loadServiceStatus();
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error starting monitoring: ${error.message}`);
+            }
+        }
+
+        async function stopMonitoring() {
+            try {
+                const response = await fetch('/api/admin/monitoring/stop', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Monitoring service stopped');
+                    loadServiceStatus();
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error stopping monitoring: ${error.message}`);
+            }
+        }
+
+        async function acknowledgeAlert(alertId) {
+            try {
+                const response = await fetch(`/api/admin/alerts/${alertId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'acknowledged', user: 'admin' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    loadActiveAlerts();
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error acknowledging alert: ${error.message}`);
+            }
+        }
+
+        async function resolveAlert(alertId) {
+            try {
+                const response = await fetch(`/api/admin/alerts/${alertId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'resolved', user: 'admin' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    loadActiveAlerts();
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error resolving alert: ${error.message}`);
+            }
+        }
+
+        async function autoMeasureImprovements() {
+            try {
+                const response = await fetch('/api/admin/improvements/auto-measure', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`Auto-measured ${data.measurements_attempted} improvements`);
+                    loadImprovements();
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error auto-measuring improvements: ${error.message}`);
+            }
+        }
+
+        function refreshData() {
+            loadDashboard();
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+    </script>
+</body>
+</html>

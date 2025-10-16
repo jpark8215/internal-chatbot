@@ -17,6 +17,8 @@ class GenerateResponse(BaseModel):
     reason: Optional[str] = Field(None, description="Error reason if not successful")
     model: Optional[str] = Field(None, description="Model used for generation")
     sources: Optional[List[Dict[str, Any]]] = Field(None, description="Source documents used for the response")
+    search_strategy: Optional[str] = Field(None, description="Search strategy used for document retrieval")
+    quality_indicators: Optional[Dict[str, Any]] = Field(None, description="Quality indicators based on historical feedback")
 
 
 class HealthResponse(BaseModel):

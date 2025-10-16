@@ -9,12 +9,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="/static/css/enhanced-feedback.css" rel="stylesheet">
+  <script src="/static/js/enhanced-feedback.js" defer></script>
   <style>
     :root {
       /* Light theme colors */
       --bg-primary: #ffffff;
       --bg-secondary: #f8fafc;
       --bg-tertiary: #f1f5f9;
+      --bg-accent: #f0f9ff;
       --text-primary: #0f172a;
       --text-secondary: #475569;
       --text-muted: #64748b;
@@ -24,15 +27,20 @@
       --accent-hover: #2563eb;
       --accent-light: #dbeafe;
       --success: #10b981;
+      --success-light: #d1fae5;
       --warning: #f59e0b;
+      --warning-light: #fef3c7;
       --error: #ef4444;
+      --error-light: #fee2e2;
       --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
       --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
       --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
       --radius-sm: 6px;
       --radius-md: 8px;
       --radius-lg: 12px;
       --radius-xl: 16px;
+      --radius-2xl: 20px;
     }
 
     [data-theme="dark"] {
@@ -40,6 +48,7 @@
       --bg-primary: #0f172a;
       --bg-secondary: #1e293b;
       --bg-tertiary: #334155;
+      --bg-accent: #1e3a8a;
       --text-primary: #f8fafc;
       --text-secondary: #cbd5e1;
       --text-muted: #94a3b8;
@@ -49,11 +58,15 @@
       --accent-hover: #3b82f6;
       --accent-light: #1e3a8a;
       --success: #34d399;
+      --success-light: #064e3b;
       --warning: #fbbf24;
+      --warning-light: #451a03;
       --error: #f87171;
+      --error-light: #450a0a;
       --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
       --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
       --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
     }
 
     * {
@@ -71,25 +84,29 @@
     }
 
     .container {
-      max-width: 1200px;
+      max-width: 1400px;
       margin: 0 auto;
-      padding: 2rem 1rem;
+      padding: 1.5rem;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      gap: 1.5rem;
     }
 
-    /* Header */
+    /* Enhanced Header */
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 2rem;
       padding: 1.5rem 2rem;
       background: var(--bg-primary);
-      border-radius: var(--radius-xl);
-      box-shadow: var(--shadow-sm);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-md);
       border: 1px solid var(--border-light);
+      position: sticky;
+      top: 1.5rem;
+      z-index: 100;
+      backdrop-filter: blur(10px);
     }
 
     .header-left {
@@ -99,27 +116,28 @@
     }
 
     .logo {
-      width: 40px;
-      height: 40px;
+      width: 48px;
+      height: 48px;
       background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-lg);
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
-      font-size: 1.2rem;
+      font-size: 1.5rem;
+      box-shadow: var(--shadow-md);
     }
 
     .header-title {
-      font-size: 1.5rem;
-      font-weight: 600;
+      font-size: 1.75rem;
+      font-weight: 700;
       color: var(--text-primary);
+      margin-bottom: 0.25rem;
     }
 
     .header-subtitle {
       font-size: 0.875rem;
       color: var(--text-muted);
-      margin-top: 0.25rem;
     }
 
     .header-controls {
@@ -128,31 +146,57 @@
       gap: 1rem;
     }
 
+    .nav-links {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .nav-link {
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-lg);
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .nav-link:hover {
+      background: var(--accent-light);
+      color: var(--accent-primary);
+    }
+
     .theme-toggle {
       background: var(--bg-secondary);
       border: 1px solid var(--border-light);
-      border-radius: var(--radius-md);
-      padding: 0.5rem;
+      border-radius: var(--radius-lg);
+      padding: 0.75rem;
       cursor: pointer;
       color: var(--text-secondary);
       transition: all 0.2s ease;
+      font-size: 1rem;
     }
 
     .theme-toggle:hover {
       background: var(--bg-tertiary);
       color: var(--text-primary);
+      transform: scale(1.05);
     }
 
     .status-badge {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.5rem 1rem;
-      background: var(--accent-light);
-      color: var(--accent-primary);
-      border-radius: var(--radius-lg);
+      padding: 0.75rem 1.25rem;
+      background: var(--success-light);
+      color: var(--success);
+      border-radius: var(--radius-xl);
       font-size: 0.875rem;
-      font-weight: 500;
+      font-weight: 600;
+      border: 1px solid var(--success);
     }
 
     .status-dot {
@@ -175,47 +219,59 @@
       }
     }
 
-    /* Main Content */
+    /* Enhanced Main Layout */
     .main-content {
       flex: 1;
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr 320px;
       gap: 2rem;
+      align-items: start;
     }
 
-    @media (min-width: 1024px) {
+    @media (max-width: 1024px) {
       .main-content {
-        grid-template-columns: 1fr 300px;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
       }
     }
 
+    /* Enhanced Chat Section */
     .chat-section {
       background: var(--bg-primary);
-      border-radius: var(--radius-xl);
-      box-shadow: var(--shadow-md);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-lg);
       border: 1px solid var(--border-light);
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      min-height: 600px;
+      min-height: 700px;
     }
 
     .chat-header {
-      padding: 1.5rem 2rem;
+      padding: 2rem 2rem 1rem;
+      background: linear-gradient(135deg, var(--bg-accent), var(--bg-secondary));
       border-bottom: 1px solid var(--border-light);
-      background: var(--bg-secondary);
     }
 
     .chat-title {
-      font-size: 1.125rem;
-      font-weight: 600;
+      font-size: 1.5rem;
+      font-weight: 700;
       color: var(--text-primary);
       margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .chat-title i {
+      color: var(--accent-primary);
+      font-size: 1.25rem;
     }
 
     .chat-description {
-      font-size: 0.875rem;
-      color: var(--text-muted);
+      font-size: 1rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
     }
 
     .chat-body {
@@ -223,7 +279,14 @@
       padding: 2rem;
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 2rem;
+    }
+
+    /* Enhanced Input Section */
+    .input-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
     }
 
     .input-group {
@@ -233,12 +296,16 @@
     }
 
     .input-label {
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: var(--text-secondary);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
       display: flex;
       align-items: center;
       gap: 0.5rem;
+    }
+
+    .input-label i {
+      color: var(--accent-primary);
     }
 
     .input-wrapper {
@@ -248,21 +315,23 @@
     .chat-input {
       width: 100%;
       min-height: 120px;
-      padding: 1rem;
+      padding: 1.25rem;
       border: 2px solid var(--border-light);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-xl);
       background: var(--bg-secondary);
       color: var(--text-primary);
       font-size: 1rem;
       resize: vertical;
-      transition: all 0.2s ease;
+      transition: all 0.3s ease;
       font-family: inherit;
+      line-height: 1.6;
     }
 
     .chat-input:focus {
       outline: none;
       border-color: var(--accent-primary);
-      box-shadow: 0 0 0 3px var(--accent-light);
+      box-shadow: 0 0 0 4px var(--accent-light);
+      background: var(--bg-primary);
     }
 
     .chat-input::placeholder {
@@ -273,52 +342,62 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 1rem;
+      flex-wrap: wrap;
+      gap: 1rem;
     }
 
     .search-options {
       display: flex;
-      gap: 1rem;
+      gap: 1.5rem;
       flex-wrap: wrap;
     }
 
     .checkbox-group {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.75rem;
       font-size: 0.875rem;
       color: var(--text-secondary);
       cursor: pointer;
       user-select: none;
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--radius-lg);
+      transition: all 0.2s ease;
+    }
+
+    .checkbox-group:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
     }
 
     .checkbox-group input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
       accent-color: var(--accent-primary);
+      cursor: pointer;
     }
 
     .submit-btn {
-      background: var(--accent-primary);
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
       color: white;
       border: none;
-      border-radius: var(--radius-lg);
-      padding: 0.75rem 2rem;
+      border-radius: var(--radius-xl);
+      padding: 1rem 2.5rem;
       font-size: 1rem;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.3s ease;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      min-width: 140px;
+      gap: 0.75rem;
+      min-width: 160px;
       justify-content: center;
+      box-shadow: var(--shadow-md);
     }
 
     .submit-btn:hover:not(:disabled) {
-      background: var(--accent-hover);
-      transform: translateY(-1px);
-      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-xl);
     }
 
     .submit-btn:disabled {
@@ -328,8 +407,8 @@
     }
 
     .loading-spinner {
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
       border: 2px solid transparent;
       border-top: 2px solid currentColor;
       border-radius: 50%;
@@ -342,29 +421,66 @@
       }
     }
 
+    /* Enhanced Response Section */
     .response-section {
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 1.5rem;
     }
 
     .response-header {
       display: flex;
-      justify-content: between;
+      justify-content: space-between;
       align-items: center;
       gap: 1rem;
     }
 
-    .response-content {
+    .response-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .action-btn {
       background: var(--bg-secondary);
       border: 1px solid var(--border-light);
       border-radius: var(--radius-lg);
-      padding: 1.5rem;
-      min-height: 150px;
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .action-btn:hover {
+      background: var(--accent-light);
+      color: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+
+    .response-container {
+      background: var(--bg-primary);
+      border: 2px solid var(--border-light);
+      border-radius: var(--radius-2xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      transition: all 0.3s ease;
+    }
+
+    .response-container.has-content {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 4px var(--accent-light);
+    }
+
+    .response-content {
+      padding: 2rem;
+      min-height: 200px;
       white-space: pre-wrap;
-      font-size: 0.95rem;
-      line-height: 1.7;
+      font-size: 1rem;
+      line-height: 1.8;
       color: var(--text-primary);
       position: relative;
       overflow-y: auto;
@@ -378,119 +494,253 @@
       color: var(--text-muted);
       font-style: italic;
       gap: 1rem;
+      min-height: 180px;
     }
 
     .response-empty i {
-      font-size: 2rem;
-      opacity: 0.5;
+      font-size: 3rem;
+      opacity: 0.3;
     }
 
-    .sources-section {
+    .response-text {
+      margin-bottom: 1.5rem;
+    }
+
+    .response-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
       background: var(--bg-secondary);
-      border: 1px solid var(--border-light);
+      border-top: 1px solid var(--border-light);
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .search-strategy {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .strategy-badge {
+      background: var(--accent-light);
+      color: var(--accent-primary);
+      padding: 0.25rem 0.75rem;
       border-radius: var(--radius-lg);
-      padding: 1rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .response-time {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    /* Enhanced Sources Section */
+    .sources-section {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-2xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
       display: none;
+      transition: all 0.3s ease;
     }
 
     .sources-section.show {
       display: block;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .sources-header {
+      padding: 1.5rem 2rem;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-light);
     }
 
     .sources-title {
-      font-size: 0.875rem;
+      font-size: 1.125rem;
       font-weight: 600;
-      color: var(--text-secondary);
-      margin-bottom: 0.75rem;
+      color: var(--text-primary);
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.75rem;
+    }
+
+    .sources-title i {
+      color: var(--accent-primary);
+    }
+
+    .sources-count {
+      background: var(--accent-light);
+      color: var(--accent-primary);
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius-lg);
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-left: auto;
     }
 
     .sources-list {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      line-height: 1.6;
-    }
-
-    .source-item {
-      background: var(--bg-primary);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-md);
-      padding: 0.75rem;
-      margin-bottom: 0.5rem;
-      transition: all 0.2s ease;
-    }
-
-    .source-item:hover {
-      border-color: var(--accent-primary);
-      box-shadow: var(--shadow-sm);
-    }
-
-    .source-item:last-child {
-      margin-bottom: 0;
-    }
-
-    .source-header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .source-header i {
-      color: var(--accent-primary);
-      font-size: 0.875rem;
-    }
-
-    .source-name {
-      font-weight: 500;
-      color: var(--text-primary);
-      font-size: 0.875rem;
-      flex: 1;
-    }
-
-    .source-relevance {
-      background: var(--accent-light);
-      color: var(--accent-primary);
-      padding: 0.125rem 0.5rem;
-      border-radius: var(--radius-sm);
-      font-size: 0.75rem;
-      font-weight: 500;
-    }
-
-    .source-preview {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      line-height: 1.4;
-      padding-left: 1.25rem;
-      border-left: 2px solid var(--border-light);
-      margin-left: 0.5rem;
-    }
-
-    /* Sidebar */
-    .sidebar {
+      padding: 1.5rem 2rem;
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
     }
 
-    .info-card {
-      background: var(--bg-primary);
+    .source-item {
+      background: var(--bg-secondary);
       border: 1px solid var(--border-light);
       border-radius: var(--radius-xl);
       padding: 1.5rem;
+      margin-bottom: 1rem;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
       box-shadow: var(--shadow-sm);
     }
 
-    .info-card-title {
+    .source-item:hover {
+      border-color: var(--accent-primary);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+
+    .source-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .source-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--accent-light);
+      color: var(--accent-primary);
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 1rem;
+      flex: 0 0 40px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .source-info {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .source-name {
       font-weight: 600;
+      color: var(--text-primary);
+      font-size: 1rem;
+      line-height: 1.4;
+      margin-bottom: 0.25rem;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .source-relevance {
+      background: linear-gradient(135deg, var(--success), #059669);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-xl);
+      font-size: 0.8rem;
+      font-weight: 700;
+      box-shadow: var(--shadow-md);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      white-space: nowrap;
+    }
+
+    .source-relevance::before {
+      content: "✓";
+      font-size: 0.75rem;
+    }
+
+    .source-preview {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      padding: 1rem;
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
+      border-left: 4px solid var(--accent-primary);
+      margin-top: 0.75rem;
+      margin-left: 1.5rem;
+      position: relative;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .source-preview::before {
+      content: "\201C";
+      position: absolute;
+      top: 0.5rem;
+      left: 0.75rem;
+      font-size: 1.5rem;
+      color: var(--accent-primary);
+      opacity: 0.3;
+      font-family: Georgia, serif;
+    }
+
+    /* Enhanced Sidebar */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      position: sticky;
+      top: 120px;
+      height: fit-content;
+    }
+
+    .info-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-2xl);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-md);
+      transition: all 0.2s ease;
+    }
+
+    .info-card:hover {
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-1px);
+    }
+
+    .info-card-title {
+      font-size: 1.125rem;
+      font-weight: 700;
       color: var(--text-primary);
       margin-bottom: 1rem;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.75rem;
+    }
+
+    .info-card-title i {
+      color: var(--accent-primary);
+      font-size: 1rem;
     }
 
     .info-list {
@@ -505,13 +755,15 @@
       color: var(--text-secondary);
       display: flex;
       align-items: flex-start;
-      gap: 0.5rem;
+      gap: 0.75rem;
+      line-height: 1.5;
     }
 
     .info-list i {
       color: var(--accent-primary);
       margin-top: 0.125rem;
       flex-shrink: 0;
+      width: 16px;
     }
 
     .keyboard-shortcut {
@@ -520,37 +772,112 @@
       border-radius: var(--radius-sm);
       padding: 0.25rem 0.5rem;
       font-size: 0.75rem;
-      font-family: monospace;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
       color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .quick-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .quick-action {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .quick-action:hover {
+      background: var(--accent-light);
+      color: var(--accent-primary);
+      border-color: var(--accent-primary);
+      transform: translateX(2px);
+    }
+
+    .quick-action i {
+      width: 16px;
+      text-align: center;
+    }
+
+    /* Feedback Section */
+    .feedback-trigger {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-light);
+      text-align: center;
+    }
+
+    .feedback-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 2rem;
+      background: linear-gradient(135deg, var(--accent-light), var(--bg-accent));
+      color: var(--accent-primary);
+      border: 2px solid var(--accent-primary);
+      border-radius: var(--radius-xl);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      box-shadow: var(--shadow-md);
+    }
+
+    .feedback-link:hover,
+    .feedback-link:focus {
+      background: var(--accent-primary);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-xl);
+    }
+
+    .feedback-link i {
+      font-size: 1.1rem;
     }
 
     /* Error states */
     .error-message {
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      color: #dc2626;
-      padding: 1rem;
-      border-radius: var(--radius-lg);
+      background: var(--error-light);
+      border: 1px solid var(--error);
+      color: var(--error);
+      padding: 1.25rem;
+      border-radius: var(--radius-xl);
       font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
     }
 
-    [data-theme="dark"] .error-message {
-      background: #450a0a;
-      border-color: #7f1d1d;
-      color: #fca5a5;
+    .error-message i {
+      font-size: 1.25rem;
+      flex-shrink: 0;
     }
 
     /* Mobile responsiveness */
     @media (max-width: 768px) {
       .container {
-        padding: 1rem 0.5rem;
+        padding: 1rem;
+        gap: 1rem;
       }
 
       .header {
         flex-direction: column;
         gap: 1rem;
         text-align: center;
-        padding: 1rem;
+        padding: 1.25rem;
+        position: static;
       }
 
       .header-controls {
@@ -559,8 +886,12 @@
         justify-content: space-between;
       }
 
+      .nav-links {
+        display: none;
+      }
+
       .chat-body {
-        padding: 1rem;
+        padding: 1.5rem;
       }
 
       .input-actions {
@@ -575,6 +906,46 @@
 
       .submit-btn {
         width: 100%;
+      }
+
+      .sidebar {
+        position: static;
+        order: -1;
+      }
+
+      .sources-list {
+        padding: 1rem;
+      }
+
+      .source-item {
+        padding: 1rem;
+      }
+
+      .source-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+      }
+
+      .source-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 0.875rem;
+      }
+
+      .source-name {
+        font-size: 0.9rem;
+      }
+
+      .source-relevance {
+        align-self: flex-start;
+        padding: 0.375rem 0.75rem;
+        font-size: 0.75rem;
+      }
+
+      .source-preview {
+        padding: 0.75rem;
+        margin-top: 0.5rem;
       }
     }
 
@@ -605,24 +976,68 @@
     /* Focus styles */
     .theme-toggle:focus,
     .submit-btn:focus,
-    .chat-input:focus {
+    .chat-input:focus,
+    .nav-link:focus,
+    .quick-action:focus {
       outline: 2px solid var(--accent-primary);
       outline-offset: 2px;
+    }
+
+    /* Loading states */
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: inherit;
+      z-index: 10;
+    }
+
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .loading-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      color: var(--text-secondary);
+    }
+
+    .loading-content .loading-spinner {
+      width: 32px;
+      height: 32px;
+      border-width: 3px;
     }
   </style>
 </head>
 
 <body>
   <div class="container">
-    <!-- Header -->
+    <!-- Enhanced Header -->
     <header class="header">
       <div class="header-left">
+        <div class="logo">
+          <i class="fas fa-brain"></i>
+        </div>
         <div>
           <h1 class="header-title">Knowledge Assistant</h1>
-          <p class="header-subtitle">Search company documents and policies</p>
+          <p class="header-subtitle">Intelligent document search and analysis</p>
         </div>
       </div>
       <div class="header-controls">
+        <nav class="nav-links">
+          <a href="/admin" class="nav-link">
+            <i class="fas fa-cog"></i>
+            Admin
+          </a>
+        </nav>
         <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
           <i class="fas fa-moon" id="themeIcon"></i>
         </button>
@@ -633,9 +1048,9 @@
       </div>
     </header>
 
-    <!-- Main Content -->
+    <!-- Enhanced Main Content -->
     <main class="main-content">
-      <!-- Chat Section -->
+      <!-- Enhanced Chat Section -->
       <section class="chat-section">
         <div class="chat-header">
           <h2 class="chat-title">
@@ -643,75 +1058,90 @@
             Document Search
           </h2>
           <p class="chat-description">
-            Ask questions about company policies, procedures, or any information in your documents
+            Ask questions about company policies, procedures, or any information in your documents.
+            Get intelligent responses with source citations and relevance scoring.
           </p>
         </div>
 
         <div class="chat-body">
-          <!-- Input Section -->
-          <div class="input-group">
-            <label for="prompt" class="input-label">
-              <i class="fas fa-comment-dots"></i>
-              Your Question
-            </label>
-            <div class="input-wrapper">
-              <textarea id="prompt" class="chat-input"
-                placeholder="What would you like to know? Try asking about policies, procedures, or specific topics..."
-                aria-describedby="input-help"></textarea>
+          <!-- Enhanced Input Section -->
+          <div class="input-section">
+            <div class="input-group">
+              <label for="prompt" class="input-label">
+                <i class="fas fa-comment-dots"></i>
+                Your Question
+              </label>
+              <div class="input-wrapper">
+                <textarea id="prompt" class="chat-input"
+                  placeholder="What would you like to know? Try asking about policies, procedures, or specific topics..."
+                  aria-describedby="input-help"></textarea>
+              </div>
+              <div id="input-help" class="sr-only">
+                Enter your question about company documents. Press Ctrl+Enter to submit.
+              </div>
             </div>
-            <div id="input-help" class="sr-only">
-              Enter your question about company documents. Press Ctrl+Enter to submit.
+
+            <!-- Enhanced Search Options -->
+            <div class="input-actions">
+              <div class="search-options">
+                <label class="checkbox-group">
+                  <input type="checkbox" id="hybridSearch" aria-describedby="hybrid-help">
+                  <span>Hybrid Search</span>
+                </label>
+                <label class="checkbox-group">
+                  <input type="checkbox" id="strictMode" checked aria-describedby="strict-help">
+                  <span>Document-only Mode</span>
+                </label>
+              </div>
+              <button id="generate" class="submit-btn" type="button">
+                <i class="fas fa-search"></i>
+                <span class="btn-text">Search</span>
+              </button>
             </div>
           </div>
 
-          <!-- Search Options -->
-          <div class="input-actions">
-            <div class="search-options">
-              <label class="checkbox-group">
-                <input type="checkbox" id="hybridSearch" aria-describedby="hybrid-help">
-                <span>Hybrid Search</span>
-              </label>
-              <label class="checkbox-group">
-                <input type="checkbox" id="strictMode" checked aria-describedby="strict-help">
-                <span>Document-only Mode</span>
-              </label>
-            </div>
-            <button id="generate" class="submit-btn" type="button">
-              <i class="fas fa-search"></i>
-              <span class="btn-text">Search</span>
-            </button>
-          </div>
-
-          <!-- Response Section -->
+          <!-- Enhanced Response Section -->
           <div class="response-section">
             <div class="response-header">
               <div class="input-label">
                 <i class="fas fa-reply"></i>
                 Response
               </div>
-            </div>
-            <div id="output" class="response-content">
-              <div class="response-empty">
-                <i class="fas fa-file-search"></i>
-                <span>Your search results will appear here</span>
+              <div class="response-actions" style="display: none;">
+                <button class="action-btn" id="copyResponse" title="Copy response">
+                  <i class="fas fa-copy"></i>
+                </button>
+                <button class="action-btn" id="shareResponse" title="Share response">
+                  <i class="fas fa-share"></i>
+                </button>
               </div>
             </div>
-          </div>
 
-          <!-- Sources Section -->
-          <div id="sourcesSection" class="sources-section">
-            <div class="sources-title">
-              <i class="fas fa-link"></i>
-              Sources
+            <div id="responseContainer" class="response-container">
+              <div id="output" class="response-content">
+                <div class="response-empty">
+                  <i class="fas fa-file-search"></i>
+                  <span>Your search results will appear here</span>
+                  <small>Ask a question to get started</small>
+                </div>
+              </div>
+              <div id="responseMeta" class="response-meta" style="display: none;">
+                <div class="search-strategy">
+                  <span>Strategy:</span>
+                  <span id="strategyBadge" class="strategy-badge">semantic</span>
+                </div>
+                <div id="responseTime" class="response-time">
+                  Response time: 0ms
+                </div>
+              </div>
             </div>
-            <div id="sources" class="sources-list"></div>
           </div>
         </div>
       </section>
 
-      <!-- Sidebar -->
+      <!-- Enhanced Sidebar -->
       <aside class="sidebar">
-        <!-- Tips Card -->
+        <!-- Enhanced Tips Card -->
         <div class="info-card">
           <h3 class="info-card-title">
             <i class="fas fa-lightbulb"></i>
@@ -736,40 +1166,24 @@
             </li>
           </ul>
         </div>
-
-        <!-- Features Card -->
-        <div class="info-card">
-          <h3 class="info-card-title">
-            <i class="fas fa-cog"></i>
-            Features
-          </h3>
-          <ul class="info-list">
-            <li>
-              <i class="fas fa-brain"></i>
-              <span><strong>Semantic Search:</strong> Understands context and meaning</span>
-            </li>
-            <li>
-              <i class="fas fa-search"></i>
-              <span><strong>Keyword Matching:</strong> Finds exact terms and phrases</span>
-            </li>
-            <li>
-              <i class="fas fa-shield-alt"></i>
-              <span><strong>Document-only Mode:</strong> Responses based solely on your documents</span>
-            </li>
-            <li>
-              <i class="fas fa-link"></i>
-              <span><strong>Source Citations:</strong> See where information comes from</span>
-            </li>
-          </ul>
-        </div>
-
-
       </aside>
     </main>
+
+    <!-- Enhanced Sources Section -->
+    <section id="sourcesSection" class="sources-section">
+      <div class="sources-header">
+        <h3 class="sources-title">
+          <i class="fas fa-link"></i>
+          Sources
+          <span id="sourcesCount" class="sources-count">0</span>
+        </h3>
+      </div>
+      <div id="sources" class="sources-list"></div>
+    </section>
   </div>
 
   <script>
-    // Theme management
+    // Enhanced theme management
     const themeToggle = document.getElementById('themeToggle');
     const themeIcon = document.getElementById('themeIcon');
     const body = document.body;
@@ -792,18 +1206,27 @@
       themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
     }
 
-    // Main functionality
+    // Enhanced main functionality
     const elements = {
       prompt: document.getElementById('prompt'),
       generate: document.getElementById('generate'),
       output: document.getElementById('output'),
+      responseContainer: document.getElementById('responseContainer'),
+      responseMeta: document.getElementById('responseMeta'),
       sources: document.getElementById('sources'),
       sourcesSection: document.getElementById('sourcesSection'),
+      sourcesCount: document.getElementById('sourcesCount'),
       hybridSearch: document.getElementById('hybridSearch'),
       strictMode: document.getElementById('strictMode'),
-      btnText: document.querySelector('.btn-text')
+      btnText: document.querySelector('.btn-text'),
+      strategyBadge: document.getElementById('strategyBadge'),
+      responseTime: document.getElementById('responseTime'),
+      responseActions: document.querySelector('.response-actions'),
+      copyResponse: document.getElementById('copyResponse'),
+      shareResponse: document.getElementById('shareResponse')
     };
 
+    // Enhanced search functionality
     async function performSearch() {
       const prompt = elements.prompt.value.trim();
 
@@ -815,6 +1238,8 @@
       // Update UI for loading state
       setLoadingState(true);
       clearResults();
+
+      const startTime = Date.now();
 
       try {
         const response = await fetch('/generate', {
@@ -831,10 +1256,18 @@
         });
 
         const data = await response.json();
+        const responseTime = Date.now() - startTime;
 
         if (data.ok) {
-          displayResults(data.text || 'No response received.');
+          // Store for feedback
+          window.lastQuery = prompt;
+          window.lastSources = data.sources;
+
+          displayResults(data.text || 'No response received.', data.search_strategy, responseTime);
           displaySources(data.sources);
+
+          // Show response actions
+          elements.responseActions.style.display = 'flex';
         } else {
           showError(data.reason || 'An unknown error occurred.');
         }
@@ -851,46 +1284,90 @@
       if (loading) {
         elements.btnText.textContent = 'Searching...';
         elements.generate.innerHTML = '<div class="loading-spinner"></div><span class="btn-text">Searching...</span>';
+
+        // Show loading overlay
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'loading-overlay';
+        loadingOverlay.innerHTML = `
+          <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <span>Searching documents...</span>
+          </div>
+        `;
+        elements.responseContainer.appendChild(loadingOverlay);
       } else {
         elements.btnText.textContent = 'Search';
         elements.generate.innerHTML = '<i class="fas fa-search"></i><span class="btn-text">Search</span>';
+
+        // Remove loading overlay
+        const loadingOverlay = elements.responseContainer.querySelector('.loading-overlay');
+        if (loadingOverlay) {
+          loadingOverlay.remove();
+        }
       }
     }
 
     function clearResults() {
       elements.output.innerHTML = '<div class="response-empty"><i class="fas fa-search"></i><span>Searching documents...</span></div>';
+      elements.responseContainer.classList.remove('has-content');
+      elements.responseMeta.style.display = 'none';
       elements.sourcesSection.classList.remove('show');
+      elements.responseActions.style.display = 'none';
     }
 
-    function displayResults(text) {
-      elements.output.textContent = text;
+    function displayResults(text, strategy, responseTime) {
+      elements.output.innerHTML = `
+        <div class="response-text">${text}</div>
+        <div class="feedback-trigger">
+          <button class="feedback-link" onclick="showEnhancedFeedback()" aria-label="Provide feedback on this response">
+            <i class="fas fa-comment-dots" aria-hidden="true"></i>
+            Rate this response
+          </button>
+        </div>
+      `;
+
+      elements.responseContainer.classList.add('has-content');
+
+      // Update meta information
+      if (strategy) {
+        elements.strategyBadge.textContent = strategy;
+      }
+      elements.responseTime.textContent = `Response time: ${responseTime}ms`;
+      elements.responseMeta.style.display = 'flex';
     }
 
     function displaySources(sources) {
       if (sources && sources.length > 0) {
-        // Create clean, formatted HTML for sources
+        // Update sources count
+        elements.sourcesCount.textContent = sources.length;
+
+        // Create enhanced HTML for sources
         const sourcesHtml = sources.map((source, index) => {
           const fileName = source.source_file ?
             (source.source_file.split('/').pop() || source.source_file.split('\\').pop()) :
             'Unknown Document';
-          
-          // Clean up file name (remove extensions, make readable)
+
+          // Clean up file name
           const cleanFileName = fileName.replace(/\.(pdf|docx?|txt|md)$/i, '');
           const displayName = cleanFileName
             .replace(/[-_]/g, ' ')
             .replace(/\b\w/g, l => l.toUpperCase())
             .replace(/\s+/g, ' ')
             .trim();
-          
-          // Use normalized score (already 0-1, higher is better)
-          const relevanceScore = (source.score * 100);
-          
+
+          // Use normalized score
+          const relevanceScore = Math.round((source.score || 0) * 100);
+
           return `
             <div class="source-item">
               <div class="source-header">
-                <i class="fas fa-file-alt"></i>
-                <span class="source-name">${displayName}</span>
-                <span class="source-relevance">${relevanceScore.toFixed(0)}% match</span>
+                <div class="source-icon">
+                  <i class="fas fa-file-alt"></i>
+                </div>
+                <div class="source-info">
+                  <div class="source-name">${displayName}</div>
+                </div>
+                <div class="source-relevance">${relevanceScore}% match</div>
               </div>
               ${source.content_preview ? `<div class="source-preview">${source.content_preview}</div>` : ''}
             </div>
@@ -899,31 +1376,633 @@
 
         elements.sources.innerHTML = sourcesHtml;
         elements.sourcesSection.classList.add('show');
+      } else {
+        elements.sourcesSection.classList.remove('show');
       }
     }
 
     function showError(message) {
-      elements.output.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-triangle"></i> ${message}</div>`;
+      elements.output.innerHTML = `
+        <div class="error-message">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span>${message}</span>
+        </div>
+      `;
+      elements.responseContainer.classList.remove('has-content');
+      elements.responseMeta.style.display = 'none';
     }
 
-    // Event listeners
+    // Enhanced event listeners
     elements.generate.addEventListener('click', performSearch);
 
     elements.prompt.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      if (e.ctrlKey && e.key === 'Enter') {
         e.preventDefault();
         performSearch();
       }
     });
 
-    // Auto-resize textarea
-    elements.prompt.addEventListener('input', function () {
-      this.style.height = 'auto';
-      this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+    // Copy response functionality
+    elements.copyResponse.addEventListener('click', async () => {
+      const responseText = elements.output.querySelector('.response-text')?.textContent;
+      if (responseText) {
+        try {
+          await navigator.clipboard.writeText(responseText);
+          elements.copyResponse.innerHTML = '<i class="fas fa-check"></i>';
+          setTimeout(() => {
+            elements.copyResponse.innerHTML = '<i class="fas fa-copy"></i>';
+          }, 2000);
+        } catch (err) {
+          console.error('Failed to copy text: ', err);
+        }
+      }
     });
 
-    // Focus management
-    elements.prompt.focus();
+    // Load system status
+    async function loadSystemStatus() {
+      try {
+        const response = await fetch('/health');
+        const data = await response.json();
+
+        document.getElementById('dbStatus').innerHTML = `Database: <strong>${data.db === 'ok' ? 'Connected' : 'Error'}</strong>`;
+        document.getElementById('llmStatus').innerHTML = `AI Model: <strong>${data.local_llm === 'available' ? 'Ready' : 'Error'}</strong>`;
+
+        // Load document count
+        const statsResponse = await fetch('/stats');
+        const statsData = await statsResponse.json();
+        document.getElementById('docCount').innerHTML = `Documents: <strong>${statsData.total_documents || 0}</strong>`;
+      } catch (error) {
+        console.error('Failed to load system status:', error);
+      }
+    }
+
+    // Enhanced Feedback Modal functionality
+    let feedbackModal = null;
+
+    // Initialize feedback modal when needed
+    function initializeFeedbackModal() {
+      if (!feedbackModal && window.EnhancedFeedbackModal) {
+        try {
+          feedbackModal = new window.EnhancedFeedbackModal();
+          console.log('Enhanced feedback modal initialized successfully');
+        } catch (error) {
+          console.error('Failed to initialize enhanced feedback modal:', error);
+          return null;
+        }
+      }
+      return feedbackModal;
+    }
+
+    // Show enhanced feedback modal
+    function showEnhancedFeedback() {
+      // Check if we have the required data
+      if (!window.lastQuery) {
+        console.warn('No query data available for feedback');
+        showSimpleFeedbackForm();
+        return;
+      }
+
+      // Try to initialize the enhanced modal
+      const modal = initializeFeedbackModal();
+
+      if (modal) {
+        try {
+          // Get the response text
+          const responseText = elements.output.querySelector('.response-text')?.textContent || '';
+
+          // Show the modal with current query data
+          modal.show(window.lastQuery, responseText, window.lastSources || []);
+          console.log('Enhanced feedback modal shown successfully');
+        } catch (error) {
+          console.error('Failed to show enhanced feedback modal:', error);
+          showSimpleFeedbackForm();
+        }
+      } else {
+        // Fallback: show simple feedback form
+        console.log('Using simple feedback form as fallback');
+        showSimpleFeedbackForm();
+      }
+    }
+
+    // Simple fallback feedback form
+    function showSimpleFeedbackForm() {
+      const modalHtml = `
+        <div class="simple-feedback-overlay" style="
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.75);
+          z-index: 1000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <div class="simple-feedback-modal" style="
+            background: var(--bg-primary);
+            border-radius: var(--radius-2xl);
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--border-light);
+          ">
+            <div class="feedback-header" style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 1.5rem;
+              padding-bottom: 1rem;
+              border-bottom: 1px solid var(--border-light);
+            ">
+              <h3 style="
+                color: var(--text-primary);
+                font-size: 1.25rem;
+                font-weight: 600;
+                margin: 0;
+              ">Rate this response</h3>
+              <button class="close-feedback-btn" style="
+                background: none;
+                border: none;
+                font-size: 1.5rem;
+                cursor: pointer;
+                color: var(--text-muted);
+                padding: 0.25rem;
+                border-radius: var(--radius-md);
+              ">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div class="feedback-content">
+              <div class="rating-section" style="text-align: center; margin-bottom: 1.5rem;">
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">How would you rate this response?</p>
+                <div class="star-rating" style="display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 1rem;">
+                  ${Array.from({ length: 5 }, (_, i) => `
+                    <button class="star-btn" data-rating="${i + 1}" style="
+                      background: none;
+                      border: none;
+                      font-size: 1.5rem;
+                      color: var(--border-medium);
+                      cursor: pointer;
+                      padding: 0.25rem;
+                      border-radius: var(--radius-md);
+                      transition: all 0.2s ease;
+                    ">
+                      <i class="fas fa-star"></i>
+                    </button>
+                  `).join('')}
+                </div>
+                <div class="rating-labels" style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.875rem;
+                  color: var(--text-muted);
+                  max-width: 200px;
+                  margin: 0 auto;
+                ">
+                  <span>Poor</span>
+                  <span>Excellent</span>
+                </div>
+              </div>
+              
+              <!-- Quick Feedback Section -->
+              <div class="quick-feedback-section" style="margin-bottom: 1.5rem;">
+                <h4 style="color: var(--text-primary); font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">Quick Feedback</h4>
+                
+                <div class="feedback-group" style="margin-bottom: 1rem;">
+                  <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.5rem;">Was this response helpful?</p>
+                  <div class="button-group" style="display: flex; gap: 0.5rem;">
+                    <button class="helpful-btn" data-value="true" style="
+                      padding: 0.5rem 1rem;
+                      background: var(--bg-secondary);
+                      border: 1px solid var(--border-light);
+                      border-radius: var(--radius-lg);
+                      color: var(--text-secondary);
+                      cursor: pointer;
+                      font-size: 0.875rem;
+                      display: flex;
+                      align-items: center;
+                      gap: 0.25rem;
+                      transition: all 0.2s ease;
+                    ">
+                      <i class="fas fa-thumbs-up"></i>
+                      Helpful
+                    </button>
+                    <button class="helpful-btn" data-value="false" style="
+                      padding: 0.5rem 1rem;
+                      background: var(--bg-secondary);
+                      border: 1px solid var(--border-light);
+                      border-radius: var(--radius-lg);
+                      color: var(--text-secondary);
+                      cursor: pointer;
+                      font-size: 0.875rem;
+                      display: flex;
+                      align-items: center;
+                      gap: 0.25rem;
+                      transition: all 0.2s ease;
+                    ">
+                      <i class="fas fa-thumbs-down"></i>
+                      Not Helpful
+                    </button>
+                  </div>
+                </div>
+
+                <div class="feedback-group" style="margin-bottom: 1rem;">
+                  <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.5rem;">Was this response accurate?</p>
+                  <div class="button-group" style="display: flex; gap: 0.5rem;">
+                    <button class="accurate-btn" data-value="true" style="
+                      padding: 0.5rem 1rem;
+                      background: var(--bg-secondary);
+                      border: 1px solid var(--border-light);
+                      border-radius: var(--radius-lg);
+                      color: var(--text-secondary);
+                      cursor: pointer;
+                      font-size: 0.875rem;
+                      display: flex;
+                      align-items: center;
+                      gap: 0.25rem;
+                      transition: all 0.2s ease;
+                    ">
+                      <i class="fas fa-check-circle"></i>
+                      Accurate
+                    </button>
+                    <button class="accurate-btn" data-value="false" style="
+                      padding: 0.5rem 1rem;
+                      background: var(--bg-secondary);
+                      border: 1px solid var(--border-light);
+                      border-radius: var(--radius-lg);
+                      color: var(--text-secondary);
+                      cursor: pointer;
+                      font-size: 0.875rem;
+                      display: flex;
+                      align-items: center;
+                      gap: 0.25rem;
+                      transition: all 0.2s ease;
+                    ">
+                      <i class="fas fa-times-circle"></i>
+                      Inaccurate
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Detailed Feedback Section -->
+              <div class="detailed-feedback-section" style="margin-bottom: 1.5rem;">
+                <h4 style="color: var(--text-primary); font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">Detailed Feedback (Optional)</h4>
+                
+                <div class="expandable-section" style="margin-bottom: 0.75rem;">
+                  <button class="section-toggle" data-target="missing-info" style="
+                    width: 100%;
+                    padding: 0.75rem;
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border-light);
+                    border-radius: var(--radius-lg);
+                    color: var(--text-primary);
+                    cursor: pointer;
+                    text-align: left;
+                    font-size: 0.875rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                  ">
+                    <i class="fas fa-chevron-right toggle-icon" style="transition: transform 0.2s ease;"></i>
+                    What information was missing?
+                  </button>
+                  <div class="section-content" data-section="missing-info" style="
+                    max-height: 0;
+                    overflow: hidden;
+                    transition: max-height 0.3s ease;
+                  ">
+                    <textarea class="missing-info-textarea" placeholder="Describe any information that should have been included..." style="
+                      width: 100%;
+                      padding: 0.75rem;
+                      border: 1px solid var(--border-light);
+                      border-radius: var(--radius-lg);
+                      background: var(--bg-primary);
+                      color: var(--text-primary);
+                      resize: vertical;
+                      min-height: 60px;
+                      font-family: inherit;
+                      margin-top: 0.5rem;
+                    "></textarea>
+                  </div>
+                </div>
+
+                <div class="expandable-section" style="margin-bottom: 0.75rem;">
+                  <button class="section-toggle" data-target="incorrect-info" style="
+                    width: 100%;
+                    padding: 0.75rem;
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border-light);
+                    border-radius: var(--radius-lg);
+                    color: var(--text-primary);
+                    cursor: pointer;
+                    text-align: left;
+                    font-size: 0.875rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                  ">
+                    <i class="fas fa-chevron-right toggle-icon" style="transition: transform 0.2s ease;"></i>
+                    What information was incorrect?
+                  </button>
+                  <div class="section-content" data-section="incorrect-info" style="
+                    max-height: 0;
+                    overflow: hidden;
+                    transition: max-height 0.3s ease;
+                  ">
+                    <textarea class="incorrect-info-textarea" placeholder="Describe any incorrect or misleading information..." style="
+                      width: 100%;
+                      padding: 0.75rem;
+                      border: 1px solid var(--border-light);
+                      border-radius: var(--radius-lg);
+                      background: var(--bg-primary);
+                      color: var(--text-primary);
+                      resize: vertical;
+                      min-height: 60px;
+                      font-family: inherit;
+                      margin-top: 0.5rem;
+                    "></textarea>
+                  </div>
+                </div>
+
+                <div class="expandable-section">
+                  <button class="section-toggle" data-target="general-comments" style="
+                    width: 100%;
+                    padding: 0.75rem;
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border-light);
+                    border-radius: var(--radius-lg);
+                    color: var(--text-primary);
+                    cursor: pointer;
+                    text-align: left;
+                    font-size: 0.875rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                  ">
+                    <i class="fas fa-chevron-right toggle-icon" style="transition: transform 0.2s ease;"></i>
+                    General comments or suggestions
+                  </button>
+                  <div class="section-content" data-section="general-comments" style="
+                    max-height: 0;
+                    overflow: hidden;
+                    transition: max-height 0.3s ease;
+                  ">
+                    <textarea class="general-comments-textarea" placeholder="Any other feedback or suggestions for improvement..." style="
+                      width: 100%;
+                      padding: 0.75rem;
+                      border: 1px solid var(--border-light);
+                      border-radius: var(--radius-lg);
+                      background: var(--bg-primary);
+                      color: var(--text-primary);
+                      resize: vertical;
+                      min-height: 60px;
+                      font-family: inherit;
+                      margin-top: 0.5rem;
+                    "></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="feedback-actions" style="
+              display: flex;
+              gap: 1rem;
+              justify-content: flex-end;
+            ">
+              <button class="cancel-feedback-btn" style="
+                padding: 0.75rem 1.5rem;
+                background: var(--bg-secondary);
+                color: var(--text-secondary);
+                border: 1px solid var(--border-light);
+                border-radius: var(--radius-lg);
+                cursor: pointer;
+                font-weight: 500;
+              ">Cancel</button>
+              <button class="submit-feedback-btn" style="
+                padding: 0.75rem 1.5rem;
+                background: var(--accent-primary);
+                color: white;
+                border: none;
+                border-radius: var(--radius-lg);
+                cursor: pointer;
+                font-weight: 500;
+              ">Submit Feedback</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Add modal to DOM
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+      const overlay = document.querySelector('.simple-feedback-overlay');
+      const modal = document.querySelector('.simple-feedback-modal');
+      const starBtns = modal.querySelectorAll('.star-btn');
+      const closeBtn = modal.querySelector('.close-feedback-btn');
+      const cancelBtn = modal.querySelector('.cancel-feedback-btn');
+      const submitBtn = modal.querySelector('.submit-feedback-btn');
+      const textarea = modal.querySelector('.feedback-textarea');
+
+      let selectedRating = 0;
+      let isHelpful = null;
+      let isAccurate = null;
+
+      // Star rating functionality
+      starBtns.forEach((btn, index) => {
+        btn.addEventListener('click', () => {
+          selectedRating = index + 1;
+          starBtns.forEach((star, i) => {
+            if (i < selectedRating) {
+              star.style.color = '#fbbf24';
+            } else {
+              star.style.color = 'var(--border-medium)';
+            }
+          });
+        });
+
+        btn.addEventListener('mouseenter', () => {
+          const hoverRating = index + 1;
+          starBtns.forEach((star, i) => {
+            if (i < hoverRating) {
+              star.style.color = '#fbbf24';
+            } else {
+              star.style.color = 'var(--border-medium)';
+            }
+          });
+        });
+
+        btn.addEventListener('mouseleave', () => {
+          starBtns.forEach((star, i) => {
+            if (i < selectedRating) {
+              star.style.color = '#fbbf24';
+            } else {
+              star.style.color = 'var(--border-medium)';
+            }
+          });
+        });
+      });
+
+      // Quick feedback buttons
+      const helpfulBtns = modal.querySelectorAll('.helpful-btn');
+      const accurateBtns = modal.querySelectorAll('.accurate-btn');
+
+      helpfulBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          isHelpful = btn.dataset.value === 'true';
+          helpfulBtns.forEach(b => {
+            b.style.background = 'var(--bg-secondary)';
+            b.style.color = 'var(--text-secondary)';
+            b.style.borderColor = 'var(--border-light)';
+          });
+          btn.style.background = isHelpful ? '#dcfce7' : '#fef2f2';
+          btn.style.color = isHelpful ? '#16a34a' : '#dc2626';
+          btn.style.borderColor = isHelpful ? '#16a34a' : '#dc2626';
+        });
+      });
+
+      accurateBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          isAccurate = btn.dataset.value === 'true';
+          accurateBtns.forEach(b => {
+            b.style.background = 'var(--bg-secondary)';
+            b.style.color = 'var(--text-secondary)';
+            b.style.borderColor = 'var(--border-light)';
+          });
+          btn.style.background = isAccurate ? '#dcfce7' : '#fef2f2';
+          btn.style.color = isAccurate ? '#16a34a' : '#dc2626';
+          btn.style.borderColor = isAccurate ? '#16a34a' : '#dc2626';
+        });
+      });
+
+      // Expandable sections
+      const sectionToggles = modal.querySelectorAll('.section-toggle');
+      sectionToggles.forEach(toggle => {
+        toggle.addEventListener('click', () => {
+          const target = toggle.dataset.target;
+          const content = modal.querySelector(`[data-section="${target}"]`);
+          const icon = toggle.querySelector('.toggle-icon');
+
+          if (content.style.maxHeight === '0px' || !content.style.maxHeight) {
+            content.style.maxHeight = '120px';
+            icon.style.transform = 'rotate(90deg)';
+          } else {
+            content.style.maxHeight = '0px';
+            icon.style.transform = 'rotate(0deg)';
+          }
+        });
+      });
+
+      // Close functionality
+      function closeFeedbackModal() {
+        overlay.remove();
+      }
+
+      closeBtn.addEventListener('click', closeFeedbackModal);
+      cancelBtn.addEventListener('click', closeFeedbackModal);
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          closeFeedbackModal();
+        }
+      });
+
+      // Submit functionality
+      submitBtn.addEventListener('click', async () => {
+        // Get the response text from the current output
+        const responseText = elements.output.querySelector('.response-text')?.textContent || '';
+
+        // Collect detailed feedback
+        const missingInfoTextarea = modal.querySelector('.missing-info-textarea');
+        const incorrectInfoTextarea = modal.querySelector('.incorrect-info-textarea');
+        const generalCommentsTextarea = modal.querySelector('.general-comments-textarea');
+
+        const feedbackData = {
+          query_text: window.lastQuery || '',
+          response_text: responseText,
+          sources_used: window.lastSources || [],
+          search_strategy: elements.strategyBadge?.textContent || 'unknown',
+          rating: selectedRating,
+          is_accurate: isAccurate,
+          is_helpful: isHelpful,
+          missing_info: missingInfoTextarea?.value.trim() || null,
+          incorrect_info: incorrectInfoTextarea?.value.trim() || null,
+          comments: generalCommentsTextarea?.value.trim() || null,
+          user_session: `session_${Date.now()}`
+        };
+
+        try {
+          // Submit feedback to server
+          const response = await fetch('/api/feedback', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(feedbackData)
+          });
+
+          if (response.ok) {
+            // Show success message
+            modal.innerHTML = `
+              <div style="text-align: center; padding: 2rem;">
+                <div style="font-size: 3rem; color: var(--success); margin-bottom: 1rem;">
+                  <i class="fas fa-check-circle"></i>
+                </div>
+                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem;">Thank you!</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Your feedback helps us improve.</p>
+                <button class="close-success-btn" style="
+                  padding: 0.75rem 1.5rem;
+                  background: var(--accent-primary);
+                  color: white;
+                  border: none;
+                  border-radius: var(--radius-lg);
+                  cursor: pointer;
+                  font-weight: 500;
+                ">Close</button>
+              </div>
+            `;
+
+            modal.querySelector('.close-success-btn').addEventListener('click', closeFeedbackModal);
+
+            // Auto-close after 3 seconds
+            setTimeout(closeFeedbackModal, 3000);
+          } else {
+            throw new Error('Failed to submit feedback');
+          }
+        } catch (error) {
+          console.error('Error submitting feedback:', error);
+          // Show error message but don't close modal
+          const errorDiv = document.createElement('div');
+          errorDiv.style.cssText = `
+            background: var(--error-light);
+            border: 1px solid var(--error);
+            color: var(--error);
+            padding: 0.75rem;
+            border-radius: var(--radius-lg);
+            margin-top: 1rem;
+            font-size: 0.875rem;
+          `;
+          errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Failed to submit feedback. Please try again.';
+          modal.querySelector('.feedback-content').appendChild(errorDiv);
+        }
+      });
+
+      // Keyboard support
+      document.addEventListener('keydown', function handleEscape(e) {
+        if (e.key === 'Escape') {
+          closeFeedbackModal();
+          document.removeEventListener('keydown', handleEscape);
+        }
+      });
+    }
+
+    // Make showEnhancedFeedback globally available
+    window.showEnhancedFeedback = showEnhancedFeedback;
+
+    // Initialize
+    loadSystemStatus();
   </script>
 </body>
 
