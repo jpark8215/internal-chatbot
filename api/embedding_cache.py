@@ -80,6 +80,12 @@ class EmbeddingCache:
                 "misses": self.misses,
                 "hit_rate": round(hit_rate, 2)
             }
+    
+    def clear(self) -> None:
+        """Clear all cached embeddings."""
+        with self.lock:
+            self.cache.clear()
+            logger.info("Embedding cache cleared")
 
 
 # Global cache instance

@@ -116,30 +116,30 @@ class VectorDAO:
         with self.get_connection() as conn:
             # Set query timeout for faster failure
             with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-                cur.execute("SET statement_timeout = '5s';")  # 5 second timeout
+                cur.execute("SET statement_timeout = '3s';")  # Reduced timeout for faster failure
                 
                 if source_file_filter:
-                    # Optimized query with index hints
+                    # Optimized query with prepared statement pattern
                     cur.execute(
                         """
-                        SELECT id, content, (embedding <-> %s::vector) AS distance, source_file
+                        SELECT id, content, embedding <-> %s::vector AS distance, source_file
                         FROM documents
                         WHERE source_file = %s
-                        ORDER BY embedding <-> %s::vector ASC
+                        ORDER BY distance ASC
                         LIMIT %s;
                         """,
-                        (query_embedding, source_file_filter, query_embedding, top_k),
+                        (query_embedding, source_file_filter, top_k),
                     )
                 else:
-                    # Use LIMIT with index scan for better performance
+                    # Optimized query using distance calculation once
                     cur.execute(
                         """
-                        SELECT id, content, (embedding <-> %s::vector) AS distance, source_file
+                        SELECT id, content, embedding <-> %s::vector AS distance, source_file
                         FROM documents
-                        ORDER BY embedding <-> %s::vector ASC
+                        ORDER BY distance ASC
                         LIMIT %s;
                         """,
-                        (query_embedding, query_embedding, top_k),
+                        (query_embedding, top_k),
                     )
                 rows = cur.fetchall()
                 return [(int(r[0]), str(r[1]), float(r[2]), r[3]) for r in rows]
@@ -345,7 +345,9 @@ class VectorDAO:
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM documents WHERE source_file = %s;", (source_file,))
-                return cur.rowcount
+                deleted_count = cur.rowcount
+                conn.commit()  # Explicit commit
+                return deleted_count
 
     def get_document_by_id(self, doc_id: int) -> Optional[Tuple[str, Optional[str]]]:
         """Get document content and source file by ID."""

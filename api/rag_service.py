@@ -62,7 +62,7 @@ class RAGService:
         # RAG configuration
         self.default_top_k = 5
         self.max_context_length = 8000  # Tokens
-        self.relevance_threshold = 1.5  # Cosine distance threshold (0-2 range)
+        self.relevance_threshold = 20.0  # Cosine distance threshold (balanced for quality vs coverage)
         
         # System prompts
         self.base_system_prompt = (
@@ -84,6 +84,32 @@ class RAGService:
         strategy = strategy or self._determine_optimal_strategy(query)
         
         logger.info(f"Retrieving documents: query='{query[:50]}...', strategy={strategy.value}, top_k={top_k}")
+        
+        # Prepare cache parameters
+        cache = None
+        cache_key_params = None
+        
+        # Check query result cache first
+        if getattr(self.settings, 'enable_query_result_cache', True):
+            from .query_result_cache import get_query_result_cache
+            cache = get_query_result_cache()
+            
+            cache_key_params = {
+                "query": query,
+                "strategy": strategy.value,
+                "top_k": top_k
+            }
+            
+            cached_result = cache.get("document_retrieval", cache_key_params)
+            if cached_result is not None:
+                logger.debug(f"Cache hit for document retrieval: {query[:50]}...")
+                return RetrievalResult(
+                    documents=cached_result,
+                    strategy_used=strategy,
+                    retrieval_time_ms=(time.time() - start_time) * 1000,
+                    embedding_time_ms=0,  # No embedding needed for cache hit
+                    total_documents_searched=self.dao.count_documents()
+                )
         
         embedding_time_ms = None
         documents = []
@@ -114,9 +140,13 @@ class RAGService:
             if documents:
                 logger.debug(f"Best document score: {documents[0][2]}")
             
-            # TEMPORARILY DISABLE FILTERING FOR DEBUGGING
-            # documents = self._filter_by_relevance(documents, strategy)
-            logger.debug(f"Kept {len(documents)} documents after relevance filtering (filtering disabled for debugging)")
+            # Apply relevance filtering
+            documents = self._filter_by_relevance(documents, strategy)
+            logger.debug(f"Kept {len(documents)} documents after relevance filtering")
+            
+            # Cache the result if caching is enabled
+            if cache is not None and cache_key_params is not None and documents:
+                cache.put("document_retrieval", cache_key_params, documents)
             
             retrieval_time_ms = (time.time() - start_time) * 1000
             
@@ -141,17 +171,44 @@ class RAGService:
         """Determine optimal search strategy based on query characteristics and user feedback."""
         query_lower = query.lower()
         
-        # Fast mode: prioritize speed over accuracy
-        if getattr(self.settings, 'enable_fast_mode', False):  # Disabled for debugging
-            # Use simple heuristics for speed
-            if len(query.split()) <= 3:
-                return SearchStrategy.KEYWORD  # Fastest for short queries
-            else:
-                return SearchStrategy.SEMANTIC  # Fast semantic search for longer queries
+        # Balanced approach: maintain accuracy while optimizing speed
+        query_words = len(query.split())
         
-        # FOR DEBUGGING: Always use keyword search first
-        logger.info(f"DEBUG: Using KEYWORD strategy for query: {query}")
-        return SearchStrategy.KEYWORD
+        # HCBS-specific queries should use enhanced search for better accuracy
+        hcbs_keywords = ['hcbs', 'home and community', 'behavioral health hcbs', 'bh hcbs', 'harp']
+        if any(keyword in query_lower for keyword in hcbs_keywords):
+            return SearchStrategy.ENHANCED  # Better accuracy for complex HCBS queries
+        
+        # CCBHC queries should use enhanced search
+        ccbhc_keywords = ['ccbhc', 'certified community behavioral health clinic', 'quality measures']
+        if any(keyword in query_lower for keyword in ccbhc_keywords):
+            return SearchStrategy.ENHANCED
+        
+        # Policy-related queries benefit from combined search
+        policy_keywords = ['policy', 'procedure', 'manual', 'guideline', 'documentation']
+        if any(keyword in query_lower for keyword in policy_keywords):
+            return SearchStrategy.COMBINED  # Better for policy documents
+        
+        # Drug/substance queries benefit from enhanced search
+        drug_keywords = ['drug', 'substance', 'test', 'testing', 'list', 'screening']
+        if any(keyword in query_lower for keyword in drug_keywords):
+            return SearchStrategy.ENHANCED  # Better for finding specific lists
+        
+        # Short queries or exact terms benefit from keyword search
+        if query_words <= 2 or any(char in query for char in ['"', "'"]):
+            return SearchStrategy.KEYWORD
+        
+        # Complex queries (admission criteria, specific requirements) use enhanced
+        complex_keywords = ['criteria', 'requirements', 'eligibility', 'admission', 'specific', 'detailed']
+        if any(keyword in query_lower for keyword in complex_keywords):
+            return SearchStrategy.ENHANCED
+        
+        # For fast mode, use semantic for general queries to balance speed and accuracy
+        if getattr(self.settings, 'enable_fast_mode', True):
+            return SearchStrategy.SEMANTIC
+        
+        # Default to semantic search for general queries
+        return SearchStrategy.SEMANTIC
         
         # Check feedback history for similar queries (only if not in fast mode)
         try:
@@ -195,23 +252,38 @@ class RAGService:
     
     def _filter_by_relevance(self, documents: List[Tuple[int, str, float, Optional[str]]], 
                            strategy: SearchStrategy) -> List[Tuple[int, str, float, Optional[str]]]:
-        """Filter documents by relevance threshold."""
+        """Filter documents by relevance threshold with strategy-specific logic."""
         if not documents:
             return documents
         
         # Different thresholds for different strategies
         if strategy == SearchStrategy.SEMANTIC:
-            # For semantic search, lower scores are better (cosine distance)
-            return [doc for doc in documents if doc[2] <= self.relevance_threshold]
+            # For semantic search, use adaptive threshold based on score distribution
+            if len(documents) > 1:
+                best_score = documents[0][2]
+                # Allow documents within 50% of the best score
+                adaptive_threshold = best_score * 1.5
+                threshold = min(self.relevance_threshold, adaptive_threshold)
+            else:
+                threshold = self.relevance_threshold
+            return [doc for doc in documents if doc[2] <= threshold]
+        
         elif strategy == SearchStrategy.KEYWORD:
-            # For keyword search, we trust the ranking
-            return documents
-        else:
-            # For hybrid/enhanced, use adaptive threshold
+            # For keyword search, we trust the ranking but apply basic filtering
+            return documents  # Keep all keyword results
+        
+        elif strategy in [SearchStrategy.ENHANCED, SearchStrategy.COMBINED]:
+            # For enhanced/combined, use more permissive threshold for better recall
             if documents:
                 best_score = documents[0][2]
-                threshold = best_score * 2  # Allow scores up to 2x the best score
+                # Allow documents within 75% of the best score for better coverage
+                adaptive_threshold = best_score * 1.75
+                threshold = min(self.relevance_threshold * 1.2, adaptive_threshold)
                 return [doc for doc in documents if doc[2] <= threshold]
+        
+        else:
+            # For hybrid and other strategies, use standard threshold
+            return [doc for doc in documents if doc[2] <= self.relevance_threshold]
         
         return documents
     
@@ -241,7 +313,28 @@ class RAGService:
             
             # Normalize score for better user understanding
             # For cosine distance (lower is better), convert to similarity percentage
-            normalized_score = max(0, min(1, 1 - score)) if score < 1 else max(0, min(1, 1 / (1 + score)))
+            # Typical good matches are in 10-20 range, excellent matches < 10
+            if score <= 5.0:
+                # Excellent match
+                normalized_score = 0.95
+            elif score <= 10.0:
+                # Very good match: 95% to 85%
+                normalized_score = 0.95 - ((score - 5.0) / 5.0) * 0.10
+            elif score <= 15.0:
+                # Good match: 85% to 70%
+                normalized_score = 0.85 - ((score - 10.0) / 5.0) * 0.15
+            elif score <= 20.0:
+                # Fair match: 70% to 50%
+                normalized_score = 0.70 - ((score - 15.0) / 5.0) * 0.20
+            elif score <= 25.0:
+                # Poor match: 50% to 25%
+                normalized_score = 0.50 - ((score - 20.0) / 5.0) * 0.25
+            else:
+                # Very poor match: < 25%
+                normalized_score = max(0.05, 0.25 - ((score - 25.0) / 10.0) * 0.20)
+            
+            # Ensure score is between 0 and 1
+            normalized_score = max(0.0, min(1.0, normalized_score))
             
             ctx_chunks.append(f"[Source {i+1}]\n{content}")
             sources.append({
@@ -509,17 +602,24 @@ class RAGService:
         
         logger.info(f"Starting RAG response generation for query: '{query[:100]}...'")
         
-        # Retrieve documents
-        retrieval_result = await self.retrieve_documents(query, top_k, strategy)
+        # Start all async operations in parallel
+        retrieval_task = asyncio.create_task(self.retrieve_documents(query, top_k, strategy))
+        
+        # Wait for retrieval to complete first
+        retrieval_result = await retrieval_task
         logger.info(f"Retrieved {len(retrieval_result.documents)} documents using strategy: {retrieval_result.strategy_used.value}")
         
-        # Parallel processing: build context and quality indicators concurrently
+        # Start context building and quality indicators in parallel
         context_task = asyncio.create_task(self._build_context_async(retrieval_result.documents, query))
-        quality_task = asyncio.create_task(self._generate_quality_indicators_async(query, retrieval_result.strategy_used))
         
-        # Wait for both to complete
-        context_text, sources = await context_task
-        quality_indicators = await quality_task
+        # Skip quality indicators in fast mode for better performance
+        if getattr(self.settings, 'skip_quality_indicators', False):
+            quality_indicators = {"fast_mode": True, "timestamp": time.time()}
+            context_text, sources = await context_task
+        else:
+            quality_task = asyncio.create_task(self._generate_quality_indicators_async(query, retrieval_result.strategy_used))
+            context_text, sources = await context_task
+            quality_indicators = await quality_task
         
         logger.info(f"Context built: {len(context_text)} characters, {len(sources)} sources")
         

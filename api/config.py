@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     db_name: Optional[str] = None
     db_user: Optional[str] = None
     db_password: Optional[str] = None
-    database_pool_size: int = 50
-    database_max_overflow: int = 100
+    database_pool_size: int = 100  # Increased for better concurrency
+    database_max_overflow: int = 200  # Increased overflow capacity
 
     # Auto-ingest configuration
     auto_ingest_on_start: bool = True
@@ -48,14 +48,14 @@ class Settings(BaseSettings):
     
     # Response time optimizations
     enable_fast_mode: bool = True
-    skip_quality_indicators: bool = False
+    skip_quality_indicators: bool = True  # Skip for faster responses
     enable_query_parallelization: bool = True
-    database_query_timeout: int = 5  # seconds
-    llm_generation_timeout: int = 30  # seconds
+    database_query_timeout: int = 3  # Reduced timeout for faster failure
+    llm_generation_timeout: int = 15  # Reduced timeout for faster responses
     
     # Caching optimizations
     enable_embedding_cache: bool = True
-    embedding_cache_size: int = 1000
+    embedding_cache_size: int = 2000  # Increased cache size
     enable_query_result_cache: bool = True
     query_result_cache_ttl: int = 300  # 5 minutes
 

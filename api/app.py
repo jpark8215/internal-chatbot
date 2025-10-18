@@ -203,13 +203,7 @@ async def monitoring_dashboard():
         return FileResponse(str(monitoring_path))
     return {"message": "Monitoring dashboard not found"}
 
-@app.get("/feedback-impact")
-async def feedback_impact_page():
-    """Serve feedback impact dashboard page."""
-    impact_path = _static_dir / "feedback-impact.html"
-    if impact_path.exists():
-        return FileResponse(str(impact_path))
-    return {"message": "Feedback impact page not found"}
+
 
 @app.get("/alert-management")
 async def alert_management_page():
@@ -691,6 +685,7 @@ async def debug_rag_flow(query: str = "test query"):
         doc_count = dao.count_documents()
         
         # Step 2: Test embedding generation
+        embedding_error = None
         try:
             vectors = await embed_texts([query])
             embedding_success = True
@@ -701,6 +696,7 @@ async def debug_rag_flow(query: str = "test query"):
             embedding_dim = 0
         
         # Step 3: Test document retrieval
+        retrieval_error = None
         try:
             retrieval_result = await rag_service.retrieve_documents(query, top_k=5)
             retrieval_success = True
@@ -713,6 +709,7 @@ async def debug_rag_flow(query: str = "test query"):
             strategy_used = "error"
         
         # Step 4: Test context building
+        context_error = None
         try:
             if retrieval_success and retrieval_result.documents:
                 context_text, sources = rag_service._build_context(retrieval_result.documents, query)
@@ -2335,3 +2332,217 @@ async def personal_feedback_widget():
     if widget_path.exists():
         return FileResponse(str(widget_path))
     return {"message": "Personal feedback widget not found"}
+# Performance Monitoring Endpoints
+
+@app.get("/api/performance/metrics")
+async def get_performance_metrics():
+    """Get comprehensive system performance metrics."""
+    try:
+        from .performance_monitor import get_performance_monitor
+        
+        monitor = get_performance_monitor()
+        metrics = monitor.get_system_metrics()
+        
+        return {
+            "system_resources": {
+                "cpu_percent": metrics.cpu_percent,
+                "memory_percent": metrics.memory_percent,
+                "memory_available_mb": metrics.memory_available_mb
+            },
+            "cache_performance": {
+                "response_cache": metrics.response_cache_stats,
+                "embedding_cache": metrics.embedding_cache_stats,
+                "query_cache": metrics.query_cache_stats
+            },
+            "database": metrics.database_pool_stats,
+            "response_times": {
+                "avg_response_time_ms": metrics.avg_response_time_ms,
+                "p95_response_time_ms": metrics.p95_response_time_ms,
+                "cache_hit_rate": metrics.cache_hit_rate
+            },
+            "recommendations": metrics.recommendations
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get performance metrics: {e}")
+        return {"error": str(e)}
+
+@app.post("/api/performance/optimize")
+async def optimize_for_speed():
+    """Apply automatic performance optimizations."""
+    try:
+        from .performance_monitor import get_performance_monitor
+        
+        monitor = get_performance_monitor()
+        result = monitor.optimize_for_speed()
+        
+        return {
+            "success": True,
+            "optimizations": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to optimize performance: {e}")
+        return {"error": str(e)}
+
+@app.get("/api/performance/cache-stats")
+async def get_all_cache_stats():
+    """Get statistics for all caches."""
+    try:
+        from .response_cache import get_response_cache
+        from .embedding_cache import get_embedding_cache
+        from .query_result_cache import get_query_result_cache
+        
+        response_cache = get_response_cache()
+        embedding_cache = get_embedding_cache()
+        query_cache = get_query_result_cache()
+        
+        return {
+            "response_cache": response_cache.get_stats(),
+            "embedding_cache": embedding_cache.get_stats(),
+            "query_result_cache": query_cache.get_stats()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get cache stats: {e}")
+        return {"error": str(e)}
+
+@app.post("/api/performance/clear-all-caches")
+async def clear_all_caches():
+    """Clear all system caches."""
+    try:
+        from .response_cache import get_response_cache
+        from .embedding_cache import get_embedding_cache
+        from .query_result_cache import get_query_result_cache
+        
+        response_cache = get_response_cache()
+        embedding_cache = get_embedding_cache()
+        query_cache = get_query_result_cache()
+        
+        response_cache.clear()
+        embedding_cache.clear()
+        query_cache.clear()
+        
+        return {
+            "success": True,
+            "message": "All caches cleared successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to clear caches: {e}")
+        return {"error": str(e)}
+@app.get("/performance-dashboard")
+async def performance_dashboard():
+    """Serve performance dashboard page."""
+    dashboard_path = _static_dir / "performance-dashboard.html"
+    if dashboard_path.exists():
+        return FileResponse(str(dashboard_path))
+    return {"message": "Performance dashboard not found"}
+
+# File Cleanup and Sync Endpoints
+
+@app.post("/api/admin/cleanup-orphaned")
+async def cleanup_orphaned_documents():
+    """Remove documents from database that no longer exist in the file system and invalidate related caches."""
+    try:
+        from .file_cleanup import cleanup_orphaned_documents
+        from pathlib import Path
+        
+        settings = get_settings()
+        base_path = Path(settings.auto_ingest_path) if settings.auto_ingest_path else Path(".")
+        
+        removed_count, removed_files, cache_invalidated = cleanup_orphaned_documents(base_path)
+        
+        return {
+            "success": True,
+            "documents_removed": removed_count,
+            "files_cleaned": removed_files,
+            "cache_entries_invalidated": cache_invalidated,
+            "message": f"Removed {removed_count} orphaned documents from {len(removed_files)} files and invalidated {cache_invalidated} cache entries"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to cleanup orphaned documents: {e}")
+        return {"error": str(e)}
+
+@app.get("/api/admin/file-sync-status")
+async def get_file_sync_status():
+    """Get detailed status of database vs filesystem synchronization."""
+    try:
+        from .file_cleanup import get_database_file_status
+        from pathlib import Path
+        
+        settings = get_settings()
+        base_path = Path(settings.auto_ingest_path) if settings.auto_ingest_path else Path(".")
+        
+        status = get_database_file_status(base_path)
+        
+        return {
+            "sync_status": status["sync_status"],
+            "summary": {
+                "total_db_documents": status["total_db_documents"],
+                "database_files": len(status["database_files"]),
+                "filesystem_files": len(status["filesystem_files"]),
+                "orphaned_files": len(status["orphaned_in_database"]),
+                "missing_files": len(status["missing_from_database"]),
+                "synchronized_files": len(status["synchronized_files"])
+            },
+            "details": {
+                "orphaned_in_database": status["orphaned_in_database"],
+                "missing_from_database": status["missing_from_database"],
+                "synchronized_files": status["synchronized_files"]
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get file sync status: {e}")
+        return {"error": str(e)}
+
+@app.post("/api/admin/sync-database")
+async def sync_database_with_filesystem():
+    """Comprehensive sync of database with file system."""
+    try:
+        from .file_cleanup import sync_database_with_filesystem
+        from pathlib import Path
+        
+        settings = get_settings()
+        base_path = Path(settings.auto_ingest_path) if settings.auto_ingest_path else Path(".")
+        
+        result = sync_database_with_filesystem(base_path)
+        
+        return {
+            "success": True,
+            "sync_result": result,
+            "message": f"Sync completed. Removed {result['orphaned_documents_removed']} orphaned documents."
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to sync database: {e}")
+        return {"error": str(e)}
+
+@app.post("/api/admin/invalidate-cache-by-source")
+async def invalidate_cache_by_source(source_file: str):
+    """Manually invalidate cache entries that reference a specific source file."""
+    try:
+        from .response_cache import get_response_cache
+        from .query_result_cache import get_query_result_cache
+        
+        response_cache = get_response_cache()
+        query_cache = get_query_result_cache()
+        
+        response_invalidated = response_cache.invalidate_by_source(source_file)
+        query_invalidated = query_cache.invalidate_by_source(source_file)
+        total_invalidated = response_invalidated + query_invalidated
+        
+        return {
+            "success": True,
+            "source_file": source_file,
+            "response_cache_invalidated": response_invalidated,
+            "query_cache_invalidated": query_invalidated,
+            "total_invalidated": total_invalidated,
+            "message": f"Invalidated {total_invalidated} cache entries referencing {source_file}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to invalidate cache by source: {e}")
+        return {"error": str(e)}

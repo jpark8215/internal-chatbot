@@ -46,18 +46,37 @@ class DocumentFileHandler(FileSystemEventHandler):
             self._handle_file_deletion(Path(event.src_path))
 
     def _handle_file_deletion(self, file_path: Path):
-        """Handle deletion of a file by removing its documents from the database."""
+        """Handle deletion of a file by removing its documents from database and invalidating caches."""
         # Check if it was a supported file type
         if file_path.suffix.lower() not in self.supported_extensions:
             return
 
+        source_file = str(file_path.absolute())
+        
         try:
+            # Step 1: Remove documents from database
             dao = get_dao()
-            source_file = str(file_path.absolute())
             deleted_count = dao.delete_documents_by_source(source_file)
             
+            # Step 2: Invalidate related cache entries
+            cache_invalidations = 0
+            try:
+                from .response_cache import get_response_cache
+                from .query_result_cache import get_query_result_cache
+                
+                response_cache = get_response_cache()
+                query_cache = get_query_result_cache()
+                
+                # Invalidate caches that reference this source file
+                response_invalidated = response_cache.invalidate_by_source(source_file)
+                query_invalidated = query_cache.invalidate_by_source(source_file)
+                cache_invalidations = response_invalidated + query_invalidated
+                
+            except Exception as cache_error:
+                logger.warning(f"[file-watcher] Failed to invalidate caches for {file_path}: {cache_error}")
+            
             if deleted_count > 0:
-                logger.info(f"[file-watcher] Removed {deleted_count} chunks for deleted file: {file_path}")
+                logger.info(f"[file-watcher] Removed {deleted_count} chunks and invalidated {cache_invalidations} cache entries for deleted file: {file_path}")
             else:
                 logger.debug(f"[file-watcher] No chunks found for deleted file: {file_path}")
                 
@@ -145,6 +164,14 @@ class FileWatcher:
 
         except Exception as e:
             logger.error(f"[file-watcher] Failed to start: {e}")
+            # Clean up on failure
+            if self.observer:
+                try:
+                    self.observer.stop()
+                except:
+                    pass
+                self.observer = None
+            self.running = False
             return False
 
     def stop(self):
@@ -269,16 +296,23 @@ def start_file_monitoring():
         return False
 
     # Try to use file watcher first (requires watchdog)
+    file_watcher_started = False
     try:
         import watchdog
         _file_watcher = FileWatcher()
         if _file_watcher.start():
             logger.info("[file-monitor] Using real-time file watcher")
-            return True
+            file_watcher_started = True
+        else:
+            logger.warning("[file-monitor] File watcher failed to start, falling back to periodic checking")
     except ImportError:
         logger.info("[file-monitor] watchdog not available, falling back to periodic checking")
     except Exception as e:
         logger.warning(f"[file-monitor] File watcher failed: {e}, falling back to periodic checking")
+
+    # If file watcher started successfully, we're done
+    if file_watcher_started:
+        return True
 
     # Fallback to periodic checker
     _periodic_checker = PeriodicFileChecker()

@@ -27,11 +27,42 @@ async def ensure_ollama_model(model: str) -> None:
 
 
 async def embed_texts(texts: List[str], model: Optional[str] = None) -> List[List[float]]:
-    """Get embeddings from Ollama for a batch of texts.
+    """Get embeddings from Ollama for a batch of texts with caching.
     Returns list of vectors.
     """
     settings = get_settings()
     model_name = model or settings.embedding_model
+
+    # Check cache first if enabled
+    if getattr(settings, 'enable_embedding_cache', True):
+        from .embedding_cache import get_embedding_cache
+        cache = get_embedding_cache()
+        
+        cached_embeddings = []
+        uncached_texts = []
+        uncached_indices = []
+        
+        for i, text in enumerate(texts):
+            cached = cache.get(text, model_name)
+            if cached is not None:
+                cached_embeddings.append((i, cached))
+            else:
+                uncached_texts.append(text)
+                uncached_indices.append(i)
+        
+        # If all texts are cached, return immediately
+        if not uncached_texts:
+            result = [None] * len(texts)
+            for i, embedding in cached_embeddings:
+                result[i] = embedding
+            return result
+        
+        # Process uncached texts
+        texts_to_process = uncached_texts
+    else:
+        texts_to_process = texts
+        cached_embeddings = []
+        uncached_indices = list(range(len(texts)))
 
     await ensure_ollama_model(model_name)
 
@@ -40,8 +71,10 @@ async def embed_texts(texts: List[str], model: Optional[str] = None) -> List[Lis
 
         # Process texts in batches for better performance
         batch_size = settings.embedding_batch_size
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i:i + batch_size]
+        new_embeddings = []
+        
+        for i in range(0, len(texts_to_process), batch_size):
+            batch = texts_to_process[i:i + batch_size]
 
             # Process batch concurrently
             batch_tasks = []
@@ -57,7 +90,7 @@ async def embed_texts(texts: List[str], model: Optional[str] = None) -> List[Lis
             # Wait for all requests in batch to complete
             batch_responses = await asyncio.gather(*batch_tasks, return_exceptions=True)
 
-            for resp in batch_responses:
+            for j, resp in enumerate(batch_responses):
                 if isinstance(resp, Exception):
                     raise RuntimeError(f"Failed to call Ollama embeddings: {resp}")
 
@@ -69,9 +102,28 @@ async def embed_texts(texts: List[str], model: Optional[str] = None) -> List[Lis
                 vector = data.get("embedding")
                 if not vector:
                     raise ValueError(f"No embedding in response: {data}")
-                embeddings.append(vector)
+                
+                new_embeddings.append(vector)
+                
+                # Cache the new embedding if caching is enabled
+                if getattr(settings, 'enable_embedding_cache', True):
+                    cache.put(batch[j], model_name, vector)
 
-        return embeddings
+        # Combine cached and new embeddings in correct order
+        if getattr(settings, 'enable_embedding_cache', True):
+            result = [None] * len(texts)
+            
+            # Place cached embeddings
+            for i, embedding in cached_embeddings:
+                result[i] = embedding
+            
+            # Place new embeddings
+            for i, embedding in enumerate(new_embeddings):
+                result[uncached_indices[i]] = embedding
+            
+            return result
+        else:
+            return new_embeddings
 
 
 async def embed_texts_batch(texts: List[str], model: Optional[str] = None,

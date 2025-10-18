@@ -134,6 +134,32 @@ class ResponseCache:
             self.access_order.clear()
             logger.info("Response cache cleared")
     
+    def invalidate_by_source(self, source_file: str) -> int:
+        """Invalidate cached responses that used a specific source file."""
+        invalidated_count = 0
+        
+        with self.lock:
+            keys_to_remove = []
+            
+            for cache_key, cached_response in self.cache.items():
+                # Check if any of the sources match the deleted file
+                for source in cached_response.sources:
+                    if source.get('source_file') and source_file in source.get('source_file', ''):
+                        keys_to_remove.append(cache_key)
+                        break
+            
+            # Remove invalidated entries
+            for key in keys_to_remove:
+                del self.cache[key]
+                if key in self.access_order:
+                    self.access_order.remove(key)
+                invalidated_count += 1
+        
+        if invalidated_count > 0:
+            logger.info(f"Invalidated {invalidated_count} cached responses using source: {source_file}")
+        
+        return invalidated_count
+    
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics."""
         with self.lock:
