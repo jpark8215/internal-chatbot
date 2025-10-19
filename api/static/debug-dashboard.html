@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Dashboard - Knowledge Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+            --border-medium: #cbd5e1;
+            --accent-primary: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-light: #dbeafe;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --error: #ef4444;
+            --error-light: #fee2e2;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem 2rem;
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-link {
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-link:hover {
+            background: var(--accent-light);
+            color: var(--accent-primary);
+        }
+
+        .debug-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            background: var(--bg-primary);
+            padding: 0.5rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-light);
+        }
+
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tab-button.active {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .tab-button:hover:not(.active) {
+            background: var(--accent-light);
+            color: var(--accent-primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .debug-section {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .results-container {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .loading i {
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error-message {
+            background: var(--error-light);
+            color: var(--error);
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--error);
+            margin: 1rem 0;
+        }
+
+        .success-message {
+            background: var(--success-light);
+            color: var(--success);
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--success);
+            margin: 1rem 0;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem 0.5rem;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+                padding: 1rem;
+            }
+
+            .nav-links {
+                justify-content: center;
+            }
+
+            .debug-tabs {
+                flex-direction: column;
+            }
+
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-left">
+                <div>
+                    <h1 class="header-title">
+                        <i class="fas fa-bug"></i>
+                        Debug Dashboard
+                    </h1>
+                    <p class="header-subtitle">Comprehensive debugging tools for search, file monitoring, and system
+                        diagnostics</p>
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="/admin" class="nav-link">
+                    <i class="fas fa-arrow-left"></i> Back to Admin
+                </a>
+                <a href="/" class="nav-link">
+                    <i class="fas fa-home"></i> Home
+                </a>
+            </div>
+        </header>
+
+        <div class="debug-tabs">
+            <button class="tab-button active" onclick="switchTab('search')">
+                <i class="fas fa-search"></i>
+                Search Debug
+            </button>
+            <button class="tab-button" onclick="switchTab('file-monitoring')">
+                <i class="fas fa-folder-open"></i>
+                File Monitoring
+            </button>
+            <button class="tab-button" onclick="switchTab('rag-flow')">
+                <i class="fas fa-flow-chart"></i>
+                RAG Flow
+            </button>
+            <button class="tab-button" onclick="switchTab('system-sync')">
+                <i class="fas fa-sync-alt"></i>
+                System Sync
+            </button>
+        </div>
+
+        <!-- Search Debug Tab -->
+        <div id="search-tab" class="tab-content active">
+            <div class="debug-section">
+                <h3 class="section-title">
+                    <i class="fas fa-search"></i>
+                    Search Testing
+                </h3>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Search Query</label>
+                        <input type="text" id="searchQuery" class="form-input" value="policy"
+                            placeholder="Enter search query">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Search Type</label>
+                        <select id="searchType" class="form-select">
+                            <option value="all">All Types</option>
+                            <option value="keyword">Keyword Only</option>
+                            <option value="semantic">Semantic Only</option>
+                            <option value="hybrid">Hybrid Only</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="runSearchDebug()">
+                    <i class="fas fa-play"></i>
+                    Run Search Test
+                </button>
+                <div id="searchResults" class="results-container" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- File Monitoring Tab -->
+        <div id="file-monitoring-tab" class="tab-content">
+            <div class="debug-section">
+                <h3 class="section-title">
+                    <i class="fas fa-folder-open"></i>
+                    File Monitoring Status
+                </h3>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <button class="btn btn-primary" onclick="checkFileMonitoring()">
+                        <i class="fas fa-sync-alt"></i>
+                        Check Status
+                    </button>
+                    <button class="btn btn-primary" onclick="restartFileMonitoring()">
+                        <i class="fas fa-restart"></i>
+                        Restart Monitoring
+                    </button>
+                </div>
+                <div id="fileMonitoringResults" class="results-container" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- RAG Flow Tab -->
+        <div id="rag-flow-tab" class="tab-content">
+            <div class="debug-section">
+                <h3 class="section-title">
+                    <i class="fas fa-flow-chart"></i>
+                    RAG Flow Testing
+                </h3>
+                <div class="form-group">
+                    <label class="form-label">Test Query</label>
+                    <input type="text" id="ragQuery" class="form-input"
+                        value="What are Quality Indicators of Person-Centered Planning in Core Services?"
+                        placeholder="Enter test query">
+                </div>
+                <button class="btn btn-primary" onclick="runRagFlowDebug()">
+                    <i class="fas fa-play"></i>
+                    Test RAG Flow
+                </button>
+                <div id="ragFlowResults" class="results-container" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- System Sync Tab -->
+        <div id="system-sync-tab" class="tab-content">
+            <div class="debug-section">
+                <h3 class="section-title">
+                    <i class="fas fa-sync-alt"></i>
+                    System Synchronization
+                </h3>
+                <p style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.875rem;">
+                    Synchronizes the database with the file System by:
+                    <br>• Removing orphaned documents (files deleted from file System but still in database)
+                    <br>• Identifying files that need to be ingested
+                    <br>• Providing a comprehensive sync status report
+                </p>
+                <button class="btn btn-primary" onclick="syncFilesystem()">
+                    <i class="fas fa-sync-alt"></i>
+                    Sync File System
+                </button>
+                <div id="systemSyncResults" class="results-container" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
+        async function runSearchDebug() {
+            const query = document.getElementById('searchQuery').value;
+            const searchType = document.getElementById('searchType').value;
+            const resultsContainer = document.getElementById('searchResults');
+
+            resultsContainer.style.display = 'block';
+            resultsContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Running search test...</div>';
+
+            try {
+                const response = await fetch(`/api/debug/search?query=${encodeURIComponent(query)}&search_type=${searchType}`);
+                const data = await response.json();
+
+                resultsContainer.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function runSearchDebug() {
+            const query = document.getElementById('searchQuery').value;
+            const searchType = document.getElementById('searchType').value;
+            const resultsContainer = document.getElementById('searchResults');
+
+            resultsContainer.style.display = 'block';
+            resultsContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Running search test...</div>';
+
+            try {
+                const response = await fetch(`/api/debug/search?query=${encodeURIComponent(query)}&search_type=${searchType}`);
+                const data = await response.json();
+
+                resultsContainer.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function checkFileMonitoring() {
+            const resultsContainer = document.getElementById('fileMonitoringResults');
+
+            resultsContainer.style.display = 'block';
+            resultsContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Checking file monitoring...</div>';
+
+            try {
+                const response = await fetch('/debug/file-monitoring');
+                const data = await response.json();
+
+                resultsContainer.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function restartFileMonitoring() {
+            const resultsContainer = document.getElementById('fileMonitoringResults');
+
+            resultsContainer.style.display = 'block';
+            resultsContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Restarting file monitoring...</div>';
+
+            try {
+                const response = await fetch('/debug/restart-file-monitoring', { method: 'POST' });
+                const data = await response.json();
+
+                resultsContainer.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function runRagFlowDebug() {
+            const query = document.getElementById('ragQuery').value;
+            const resultsContainer = document.getElementById('ragFlowResults');
+
+            resultsContainer.style.display = 'block';
+            resultsContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Testing RAG flow...</div>';
+
+            try {
+                const response = await fetch(`/debug/rag-flow?query=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                resultsContainer.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function syncFilesystem() {
+            const resultsContainer = document.getElementById('systemSyncResults');
+
+            resultsContainer.style.display = 'block';
+            resultsContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Syncing filesystem...</div>';
+
+            try {
+                const response = await fetch('/debug/sync-filesystem', { method: 'POST' });
+                const data = await response.json();
+
+                resultsContainer.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+
+</html>

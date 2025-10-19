@@ -60,20 +60,28 @@ class DocumentFileHandler(FileSystemEventHandler):
             
             # Step 2: Invalidate related cache entries
             cache_invalidations = 0
+            
+            # Try to invalidate response cache
             try:
                 from .response_cache import get_response_cache
-                from .query_result_cache import get_query_result_cache
-                
                 response_cache = get_response_cache()
-                query_cache = get_query_result_cache()
-                
-                # Invalidate caches that reference this source file
                 response_invalidated = response_cache.invalidate_by_source(source_file)
-                query_invalidated = query_cache.invalidate_by_source(source_file)
-                cache_invalidations = response_invalidated + query_invalidated
-                
+                cache_invalidations += response_invalidated
+            except ImportError:
+                logger.debug(f"[file-watcher] Response cache not available")
             except Exception as cache_error:
-                logger.warning(f"[file-watcher] Failed to invalidate caches for {file_path}: {cache_error}")
+                logger.warning(f"[file-watcher] Failed to invalidate response cache for {file_path}: {cache_error}")
+            
+            # Try to invalidate query result cache
+            try:
+                from .query_result_cache import get_query_result_cache
+                query_cache = get_query_result_cache()
+                query_invalidated = query_cache.invalidate_by_source(source_file)
+                cache_invalidations += query_invalidated
+            except ImportError:
+                logger.debug(f"[file-watcher] Query result cache not available")
+            except Exception as cache_error:
+                logger.warning(f"[file-watcher] Failed to invalidate query cache for {file_path}: {cache_error}")
             
             if deleted_count > 0:
                 logger.info(f"[file-watcher] Removed {deleted_count} chunks and invalidated {cache_invalidations} cache entries for deleted file: {file_path}")
@@ -87,7 +95,6 @@ class DocumentFileHandler(FileSystemEventHandler):
         """Process a new file for ingestion."""
         # Check if it's a supported file type
         if file_path.suffix.lower() not in self.supported_extensions:
-            logger.debug(f"Ignoring unsupported file: {file_path}")
             return
 
         # Avoid processing the same file multiple times
@@ -99,7 +106,7 @@ class DocumentFileHandler(FileSystemEventHandler):
 
         try:
             # Wait a moment for file to be fully written
-            time.sleep(2)
+            time.sleep(1)  # Reduced wait time
 
             if not file_path.exists():
                 logger.warning(f"File disappeared before processing: {file_path}")
@@ -107,22 +114,21 @@ class DocumentFileHandler(FileSystemEventHandler):
 
             logger.info(f"[file-watcher] New file detected: {file_path.name}")
 
-            # Check if file is already ingested
+            # Quick check if file is already ingested (optimized)
             dao = get_dao()
-            docs_by_source = dao.count_documents_by_source()
-            existing_sources = {source for source, count in docs_by_source}
-
-            # Check both absolute path and filename
             abs_path = str(file_path.absolute())
-            filename = file_path.name
-
-            if abs_path in existing_sources or filename in existing_sources:
-                logger.info(f"[file-watcher] File already ingested: {filename}")
-                return
+            
+            # Simple existence check instead of loading all sources
+            with dao.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT COUNT(*) FROM documents WHERE source_file = %s", (abs_path,))
+                    if cur.fetchone()[0] > 0:
+                        logger.info(f"[file-watcher] File already ingested: {file_path.name}")
+                        return
 
             # Ingest the new file
             chunks_ingested = ingest_path(file_path)
-            logger.info(f"[file-watcher] Successfully ingested {chunks_ingested} chunks from {filename}")
+            logger.info(f"[file-watcher] Successfully ingested {chunks_ingested} chunks from {file_path.name}")
 
         except Exception as e:
             logger.error(f"[file-watcher] Failed to ingest {file_path}: {e}")

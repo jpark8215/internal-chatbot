@@ -41,35 +41,34 @@ class QueryHistoryDAO:
         """Ensure query history schema exists."""
         with self.dao.get_connection() as conn:
             with conn.cursor() as cur:
-                # Read and execute schema file
-                schema_path = "db/query_history_schema.sql"
-                try:
-                    with open(schema_path, 'r') as f:
-                        schema_sql = f.read()
-                    cur.execute(schema_sql)
-                    conn.commit()
-                except FileNotFoundError:
-                    # Fallback: create basic table
-                    cur.execute("""
-                        CREATE TABLE IF NOT EXISTS query_history (
-                            id SERIAL PRIMARY KEY,
-                            session_id VARCHAR(255),
-                            user_ip VARCHAR(45),
-                            user_agent TEXT,
-                            query_text TEXT NOT NULL,
-                            response_text TEXT,
-                            sources_used JSONB,
-                            search_type VARCHAR(50),
-                            response_time_ms INTEGER,
-                            tokens_used INTEGER,
-                            model_used VARCHAR(100),
-                            success BOOLEAN DEFAULT true,
-                            error_message TEXT,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                        );
-                    """)
-                    conn.commit()
+                # Create query history table (schema is now in main init_db.sql)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS query_history (
+                        id SERIAL PRIMARY KEY,
+                        session_id VARCHAR(255),
+                        user_ip VARCHAR(45),
+                        user_agent TEXT,
+                        query_text TEXT NOT NULL,
+                        response_text TEXT,
+                        sources_used JSONB,
+                        search_type VARCHAR(50),
+                        response_time_ms INTEGER,
+                        tokens_used INTEGER,
+                        model_used VARCHAR(100),
+                        success BOOLEAN DEFAULT true,
+                        error_message TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
+                
+                # Create indexes
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_query_history_created_at ON query_history (created_at DESC);
+                    CREATE INDEX IF NOT EXISTS idx_query_history_session_id ON query_history (session_id);
+                    CREATE INDEX IF NOT EXISTS idx_query_history_success ON query_history (success);
+                """)
+                conn.commit()
     
     def log_query(self, record: QueryRecord) -> int:
         """Log a query interaction."""

@@ -22,12 +22,15 @@ def cleanup_orphaned_documents(base_path: Path) -> Tuple[int, List[str], int]:
     
     # Get all source files from database
     db_sources = dao.count_documents_by_source()
-    db_source_files = {source_file for source_file, _ in db_sources}
+    db_source_files = {source_file for source_file, _ in db_sources if source_file}
     
     # Get all actual files in the directory
     actual_files = set()
     for ext in ['.pdf', '.docx', '.txt', '.md', '.markdown']:
-        actual_files.update(str(f.absolute()) for f in base_path.rglob(f'*{ext}'))
+        try:
+            actual_files.update(str(f.absolute()) for f in base_path.rglob(f'*{ext}'))
+        except Exception as e:
+            logger.warning(f"Error scanning for {ext} files: {e}")
     
     # Find orphaned files (in database but not on disk)
     orphaned_files = db_source_files - actual_files
@@ -35,6 +38,8 @@ def cleanup_orphaned_documents(base_path: Path) -> Tuple[int, List[str], int]:
     total_removed = 0
     removed_files = []
     total_cache_invalidated = 0
+    
+    logger.info(f"Found {len(orphaned_files)} orphaned files to clean up")
     
     for orphaned_file in orphaned_files:
         if orphaned_file:  # Skip None values
@@ -45,26 +50,38 @@ def cleanup_orphaned_documents(base_path: Path) -> Tuple[int, List[str], int]:
                 removed_files.append(orphaned_file)
                 
                 # Invalidate related cache entries
+                cache_invalidated = 0
                 try:
                     from .response_cache import get_response_cache
-                    from .query_result_cache import get_query_result_cache
-                    
                     response_cache = get_response_cache()
-                    query_cache = get_query_result_cache()
-                    
                     response_invalidated = response_cache.invalidate_by_source(orphaned_file)
-                    query_invalidated = query_cache.invalidate_by_source(orphaned_file)
-                    cache_invalidated = response_invalidated + query_invalidated
-                    total_cache_invalidated += cache_invalidated
-                    
-                    logger.info(f"Removed {removed_count} orphaned documents and invalidated {cache_invalidated} cache entries from: {orphaned_file}")
-                    
+                    cache_invalidated += response_invalidated
+                except ImportError:
+                    logger.debug("Response cache not available")
                 except Exception as cache_error:
-                    logger.warning(f"Failed to invalidate caches for {orphaned_file}: {cache_error}")
-                    logger.info(f"Removed {removed_count} orphaned documents from: {orphaned_file}")
+                    logger.warning(f"Failed to invalidate response cache for {orphaned_file}: {cache_error}")
+                
+                try:
+                    from .query_result_cache import get_query_result_cache
+                    query_cache = get_query_result_cache()
+                    query_invalidated = query_cache.invalidate_by_source(orphaned_file)
+                    cache_invalidated += query_invalidated
+                except ImportError:
+                    logger.debug("Query result cache not available")
+                except Exception as cache_error:
+                    logger.warning(f"Failed to invalidate query cache for {orphaned_file}: {cache_error}")
+                
+                total_cache_invalidated += cache_invalidated
+                
+                logger.info(f"Removed {removed_count} orphaned documents and invalidated {cache_invalidated} cache entries from: {orphaned_file}")
                     
             except Exception as e:
                 logger.error(f"Failed to remove orphaned documents from {orphaned_file}: {e}")
+    
+    if total_removed > 0:
+        logger.info(f"Cleanup completed: removed {total_removed} documents from {len(removed_files)} orphaned files")
+    else:
+        logger.info("No orphaned documents found - database is in sync with filesystem")
     
     return total_removed, removed_files, total_cache_invalidated
 
@@ -79,7 +96,7 @@ def sync_database_with_filesystem(base_path: Path) -> dict:
     dao = get_dao()
     
     # Step 1: Clean up orphaned documents
-    removed_count, removed_files = cleanup_orphaned_documents(base_path)
+    removed_count, removed_files, cache_invalidated = cleanup_orphaned_documents(base_path)
     
     # Step 2: Get current state
     current_db_sources = dao.count_documents_by_source()

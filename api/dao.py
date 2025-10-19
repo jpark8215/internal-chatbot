@@ -38,7 +38,9 @@ class VectorDAO:
                     self._connection_pool = pool.ThreadedConnectionPool(
                         minconn=1,
                         maxconn=self.settings.database_pool_size,
-                        dsn=dsn
+                        dsn=dsn,
+                        # Add connection timeout and other optimizations
+                        options=f"-c statement_timeout={self.settings.database_query_timeout}s"
                     )
         return self._connection_pool
 

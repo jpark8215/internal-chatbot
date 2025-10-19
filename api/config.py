@@ -27,12 +27,18 @@ class Settings(BaseSettings):
     db_password: Optional[str] = None
     database_pool_size: int = 100  # Increased for better concurrency
     database_max_overflow: int = 200  # Increased overflow capacity
+    database_query_timeout: int = 3  # Query timeout in seconds
+    database_connection_timeout: int = 10  # Connection timeout in seconds
 
     # Auto-ingest configuration
     auto_ingest_on_start: bool = True
     auto_ingest_path: Optional[str] = None
     auto_ingest_watch_mode: bool = False
     auto_ingest_watch_interval: int = 600
+    
+    # Scheduled cleanup configuration
+    enable_scheduled_cleanup: bool = True
+    cleanup_interval: int = 3600  # 1 hour in seconds
 
     # Logging configuration
     log_level: str = "INFO"

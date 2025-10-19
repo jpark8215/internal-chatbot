@@ -9,8 +9,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <link href="/static/css/enhanced-feedback.css" rel="stylesheet">
-  <script src="/static/js/enhanced-feedback.js" defer></script>
   <style>
     :root {
       /* Light theme colors */
@@ -949,6 +947,56 @@
       }
     }
 
+    /* Modal scrollbar improvements */
+    .simple-feedback-modal .section-content {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-medium) var(--bg-secondary);
+    }
+
+    .simple-feedback-modal .section-content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .simple-feedback-modal .section-content::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
+    }
+
+    .simple-feedback-modal .section-content::-webkit-scrollbar-thumb {
+      background: var(--border-medium);
+      border-radius: var(--radius-sm);
+    }
+
+    .simple-feedback-modal .section-content::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    /* Ensure modal itself can scroll if content is too tall */
+    .simple-feedback-modal {
+      max-height: 90vh;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-medium) var(--bg-secondary);
+    }
+
+    .simple-feedback-modal::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .simple-feedback-modal::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
+    }
+
+    .simple-feedback-modal::-webkit-scrollbar-thumb {
+      background: var(--border-medium);
+      border-radius: var(--radius-sm);
+    }
+
+    .simple-feedback-modal::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
     /* Accessibility improvements */
     @media (prefers-reduced-motion: reduce) {
 
@@ -1418,6 +1466,115 @@
       }
     });
 
+    // Share response functionality
+    elements.shareResponse.addEventListener('click', async () => {
+      const responseText = elements.output.querySelector('.response-text')?.textContent;
+      const query = window.lastQuery || elements.prompt.value.trim();
+
+      if (responseText && query) {
+        const shareData = {
+          title: 'Knowledge Assistant Response',
+          text: `Question: ${query}\n\nAnswer: ${responseText}`,
+          url: window.location.href
+        };
+
+        try {
+          // Try native Web Share API first (mobile/modern browsers)
+          if (navigator.share) {
+            await navigator.share(shareData);
+            elements.shareResponse.innerHTML = '<i class="fas fa-check"></i>';
+            setTimeout(() => {
+              elements.shareResponse.innerHTML = '<i class="fas fa-share"></i>';
+            }, 2000);
+          } else {
+            // Fallback: copy to clipboard with formatted text
+            const shareText = `${shareData.title}\n\n${shareData.text}\n\nShared from: ${shareData.url}`;
+            await navigator.clipboard.writeText(shareText);
+            elements.shareResponse.innerHTML = '<i class="fas fa-check"></i>';
+            setTimeout(() => {
+              elements.shareResponse.innerHTML = '<i class="fas fa-share"></i>';
+            }, 2000);
+
+            // Show a brief notification
+            showShareNotification('Response copied to clipboard for sharing!');
+          }
+        } catch (err) {
+          console.error('Failed to share response: ', err);
+          showShareNotification('Failed to share response', 'error');
+        }
+      } else {
+        showShareNotification('No response to share', 'error');
+      }
+    });
+
+    // Helper function to show share notifications
+    function showShareNotification(message, type = 'success') {
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'error' ? 'var(--error)' : 'var(--success)'};
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        z-index: 1001;
+        font-size: 0.875rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        animation: slideInRight 0.3s ease-out;
+      `;
+
+      notification.innerHTML = `
+        <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 'check-circle'}"></i>
+        ${message}
+      `;
+
+      // Add animation keyframes if not already present
+      if (!document.querySelector('#shareNotificationStyles')) {
+        const style = document.createElement('style');
+        style.id = 'shareNotificationStyles';
+        style.textContent = `
+          @keyframes slideInRight {
+            from {
+              transform: translateX(100%);
+              opacity: 0;
+            }
+            to {
+              transform: translateX(0);
+              opacity: 1;
+            }
+          }
+          @keyframes slideOutRight {
+            from {
+              transform: translateX(0);
+              opacity: 1;
+            }
+            to {
+              transform: translateX(100%);
+              opacity: 0;
+            }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      document.body.appendChild(notification);
+
+      // Remove notification after 3 seconds
+      setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease-in';
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.remove();
+          }
+        }, 300);
+      }, 3000);
+    }
+
     // Load system status
     async function loadSystemStatus() {
       try {
@@ -1505,6 +1662,8 @@
             padding: 2rem;
             max-width: 500px;
             width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
             box-shadow: var(--shadow-xl);
             border: 1px solid var(--border-light);
           ">
@@ -1887,10 +2046,21 @@
           const icon = toggle.querySelector('.toggle-icon');
 
           if (content.style.maxHeight === '0px' || !content.style.maxHeight) {
-            content.style.maxHeight = '120px';
+            // Calculate the actual height needed
+            content.style.maxHeight = 'none';
+            const scrollHeight = content.scrollHeight;
+            content.style.maxHeight = '0px';
+
+            // Use requestAnimationFrame to ensure the transition works
+            requestAnimationFrame(() => {
+              content.style.maxHeight = Math.max(scrollHeight + 20, 120) + 'px';
+              content.style.overflowY = scrollHeight > 100 ? 'auto' : 'hidden';
+            });
+
             icon.style.transform = 'rotate(90deg)';
           } else {
             content.style.maxHeight = '0px';
+            content.style.overflowY = 'hidden';
             icon.style.transform = 'rotate(0deg)';
           }
         });

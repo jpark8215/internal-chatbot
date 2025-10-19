@@ -66,9 +66,26 @@ class ImprovementTracker:
         """Ensure improvement tracking schema exists."""
         with self.dao.get_connection() as conn:
             with conn.cursor() as cur:
-                # Schema already exists from enhanced_feedback_schema.sql
-                # Just ensure additional indexes
+                # Create improvement_actions table (schema is now in main init_db.sql)
                 cur.execute("""
+                    CREATE TABLE IF NOT EXISTS improvement_actions (
+                        id SERIAL PRIMARY KEY,
+                        feedback_id INTEGER REFERENCES user_feedback(id) ON DELETE CASCADE,
+                        action_type VARCHAR(50) NOT NULL,
+                        description TEXT NOT NULL,
+                        implemented_at TIMESTAMP,
+                        impact_metrics JSONB,
+                        created_by VARCHAR(255),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
+                
+                # Create indexes
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_improvement_actions_feedback_id ON improvement_actions (feedback_id);
+                    CREATE INDEX IF NOT EXISTS idx_improvement_actions_type ON improvement_actions (action_type);
+                    CREATE INDEX IF NOT EXISTS idx_improvement_actions_created_at ON improvement_actions (created_at DESC);
                     CREATE INDEX IF NOT EXISTS idx_improvement_actions_type_implemented 
                     ON improvement_actions (action_type, implemented_at DESC);
                 """)

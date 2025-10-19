@@ -51,18 +51,12 @@ class ResponseCache:
     def _generate_cache_key(self, query: str, system_prompt: Optional[str] = None, 
                           model: Optional[str] = None) -> str:
         """Generate cache key from query parameters."""
-        # Normalize query
+        # Normalize query for better cache hits
         normalized_query = query.strip().lower()
         
-        # Create hash from query + system prompt + model
-        content = {
-            "query": normalized_query,
-            "system_prompt": system_prompt or "",
-            "model": model or ""
-        }
-        
-        content_str = json.dumps(content, sort_keys=True)
-        return hashlib.sha256(content_str.encode()).hexdigest()[:16]
+        # Use simpler hash for better performance
+        content = f"{normalized_query}:{system_prompt or ''}:{model or ''}"
+        return hashlib.md5(content.encode()).hexdigest()[:12]
     
     def get(self, query: str, system_prompt: Optional[str] = None, 
             model: Optional[str] = None) -> Optional[CachedResponse]:

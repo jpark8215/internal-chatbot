@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Dashboard - Knowledge Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+            --border-medium: #cbd5e1;
+            --accent-primary: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-light: #dbeafe;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --error: #ef4444;
+            --error-light: #fee2e2;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem 2rem;
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-link {
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-link:hover {
+            background: var(--accent-light);
+            color: var(--accent-primary);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .refresh-btn {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .refresh-btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-indicator.healthy {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .status-indicator.degraded {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .status-indicator.critical {
+            background: var(--error-light);
+            color: var(--error);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            transition: all 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .stat-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .stat-icon.primary {
+            background: var(--accent-light);
+            color: var(--accent-primary);
+        }
+
+        .stat-icon.success {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .stat-icon.warning {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .stat-icon.error {
+            background: var(--error-light);
+            color: var(--error);
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-description {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .components-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .component-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+        }
+
+        .component-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .component-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .component-item:last-child {
+            border-bottom: none;
+        }
+
+        .component-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .component-value {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .loading i {
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error-message {
+            background: var(--error-light);
+            color: var(--error);
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--error);
+            margin: 1rem 0;
+        }
+
+        .issues-list {
+            background: var(--warning-light);
+            border: 1px solid var(--warning);
+            border-radius: var(--radius-lg);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .issues-title {
+            font-weight: 600;
+            color: var(--warning);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .issue-item {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem 0.5rem;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+                padding: 1rem;
+            }
+
+            .nav-links {
+                justify-content: center;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .components-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-left">
+                <div>
+                    <h1 class="header-title">
+                        <i class="fas fa-tachometer-alt"></i>
+                        System Dashboard
+                    </h1>
+                    <p class="header-subtitle">Comprehensive system health, database status, and diagnostics</p>
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="/admin" class="nav-link">
+                    <i class="fas fa-arrow-left"></i> Back to Admin
+                </a>
+                <a href="/" class="nav-link">
+                    <i class="fas fa-home"></i> Home
+                </a>
+            </div>
+        </header>
+
+        <div class="controls">
+            <div id="overallStatus" class="status-indicator">
+                <i class="fas fa-spinner fa-spin"></i>
+                Loading...
+            </div>
+            <button class="refresh-btn" onclick="loadSystemHealth()">
+                <i class="fas fa-sync-alt"></i>
+                Refresh Status
+            </button>
+        </div>
+
+        <div id="issuesList" style="display: none;">
+            <!-- Issues will be displayed here -->
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="loading">
+                <i class="fas fa-spinner"></i>
+                Loading system statistics...
+            </div>
+        </div>
+
+        <div class="components-grid" id="componentsGrid">
+            <div class="loading">
+                <i class="fas fa-spinner"></i>
+                Loading component status...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadSystemHealth() {
+            try {
+                const response = await fetch('/api/system-health');
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                displayOverallStatus(data.overall_status, data.issues);
+                displaySystemStats(data.components);
+                displayComponents(data.components);
+
+            } catch (error) {
+                console.error('Failed to load system health:', error);
+                document.getElementById('overallStatus').innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Error Loading Status
+                `;
+                document.getElementById('overallStatus').className = 'status-indicator critical';
+
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Failed to load system health: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function displayOverallStatus(status, issues) {
+            const statusElement = document.getElementById('overallStatus');
+            const issuesElement = document.getElementById('issuesList');
+
+            let statusIcon, statusText;
+            switch (status) {
+                case 'healthy':
+                    statusIcon = 'fas fa-check-circle';
+                    statusText = 'System Healthy';
+                    break;
+                case 'degraded':
+                    statusIcon = 'fas fa-exclamation-triangle';
+                    statusText = 'System Degraded';
+                    break;
+                case 'critical':
+                    statusIcon = 'fas fa-times-circle';
+                    statusText = 'System Critical';
+                    break;
+                default:
+                    statusIcon = 'fas fa-question-circle';
+                    statusText = 'Status Unknown';
+            }
+
+            statusElement.innerHTML = `<i class="${statusIcon}"></i> ${statusText}`;
+            statusElement.className = `status-indicator ${status}`;
+
+            if (issues && issues.length > 0) {
+                issuesElement.style.display = 'block';
+                issuesElement.innerHTML = `
+                    <div class="issues-title">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        System Issues Detected
+                    </div>
+                    ${issues.map(issue => `<div class="issue-item">• ${issue}</div>`).join('')}
+                `;
+            } else {
+                issuesElement.style.display = 'none';
+            }
+        }
+
+        function displaySystemStats(components) {
+            const statsGrid = document.getElementById('statsGrid');
+
+            const database = components.database || {};
+            const fileMonitoring = components.file_monitoring || {};
+            const autoIngestPath = components.auto_ingest_path || {};
+            const systemResources = components.system_resources || {};
+
+            const cards = [
+                {
+                    title: 'Database Documents',
+                    value: database.total_documents || 0,
+                    description: `From ${database.unique_sources || 0} sources`,
+                    icon: 'fas fa-database',
+                    iconClass: database.status === 'healthy' ? 'success' : 'error'
+                },
+                {
+                    title: 'File Monitoring',
+                    value: fileMonitoring.active ? 'Active' : 'Inactive',
+                    description: fileMonitoring.enabled ? 'Enabled' : 'Disabled',
+                    icon: 'fas fa-folder-open',
+                    iconClass: fileMonitoring.active ? 'success' : 'warning'
+                },
+                {
+                    title: 'Source Files',
+                    value: autoIngestPath.file_count || 0,
+                    description: autoIngestPath.exists ? 'Path exists' : 'Path missing',
+                    icon: 'fas fa-file-alt',
+                    iconClass: autoIngestPath.exists ? 'success' : 'error'
+                },
+                {
+                    title: 'Memory Usage',
+                    value: `${(systemResources.memory_percent || 0).toFixed(1)}%`,
+                    description: 'System memory',
+                    icon: 'fas fa-memory',
+                    iconClass: (systemResources.memory_percent || 0) > 80 ? 'warning' : 'success'
+                }
+            ];
+
+            statsGrid.innerHTML = cards.map(card => `
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-title">${card.title}</div>
+                        <div class="stat-icon ${card.iconClass}">
+                            <i class="${card.icon}"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value">${card.value}</div>
+                    <div class="stat-description">${card.description}</div>
+                </div>
+            `).join('');
+        }
+
+        function displayComponents(components) {
+            const componentsGrid = document.getElementById('componentsGrid');
+
+            const database = components.database || {};
+            const fileMonitoring = components.file_monitoring || {};
+            const autoIngestPath = components.auto_ingest_path || {};
+            const systemResources = components.system_resources || {};
+
+            componentsGrid.innerHTML = `
+                <div class="component-card">
+                    <h3 class="component-title">
+                        <i class="fas fa-database"></i>
+                        Database Status
+                    </h3>
+                    <div class="component-item">
+                        <span class="component-label">Connection</span>
+                        <span class="component-value">${database.connection || 'Unknown'}</span>
+                    </div>
+                    <div class="component-item">
+                        <span class="component-label">Total Documents</span>
+                        <span class="component-value">${database.total_documents || 0}</span>
+                    </div>
+                    <div class="component-item">
+                        <span class="component-label">Unique Sources</span>
+                        <span class="component-value">${database.unique_sources || 0}</span>
+                    </div>
+                    <div class="component-item">
+                        <span class="component-label">Database URL Configured</span>
+                        <span class="component-value">${database.database_url_configured ? 'Yes' : 'No'}</span>
+                    </div>
+                </div>
+
+                <div class="component-card">
+                    <h3 class="component-title">
+                        <i class="fas fa-folder-open"></i>
+                        File Monitoring
+                    </h3>
+                    <div class="component-item">
+                        <span class="component-label">Status</span>
+                        <span class="component-value">${fileMonitoring.active ? 'Active' : 'Inactive'}</span>
+                    </div>
+                    <div class="component-item">
+                        <span class="component-label">Enabled</span>
+                        <span class="component-value">${fileMonitoring.enabled ? 'Yes' : 'No'}</span>
+                    </div>
+                    <div class="component-item">
+                        <span class="component-label">Watch Interval</span>
+                        <span class="component-value">${fileMonitoring.watch_interval || 0}s</span>
+                    </div>
+                    <div class="component-item">
+                        <span class="component-label">Auto-ingest on Start</span>
+                        <span class="component-value">${fileMonitoring.auto_ingest_on_start ? 'Yes' : 'No'}</span>
+                    </div>
+                </div>
+
+                <div class="component-card">
+                    <h3 class="component-title">
+                        <i class="fas fa-hdd"></i>
+                        Auto-ingest Path
+                    </h3>
+                    <div class="component-item">
+                        <span class="component-label">Configured</span>
+                        <span class="component-value">${autoIngestPath.configured ? 'Yes' : 'No'}</span>
+                    </div>
+                    <div class="component-item">
+                        <span class="component-label">Path Exists</span>
+                        <span class="component-value">${autoIngestPath.exists ? 'Yes' : 'No'}</span>
+                    </div>
+                    <div class="component-item">
+                        <span class="component-label">Readable</span>
+                        <span class="component-value">${autoIngestPath.readable ? 'Yes' : 'No'}</span>
+                    </div>
+                    <div class="component-item">
+                        <span class="component-label">File Count</span>
+                        <span class="component-value">${autoIngestPath.file_count || 0}</span>
+                    </div>
+                </div>
+
+                <div class="component-card">
+                    <h3 class="component-title">
+                        <i class="fas fa-server"></i>
+                        System Resources
+                    </h3>
+                    <div class="component-item">
+                        <span class="component-label">CPU Usage</span>
+                        <span class="component-value">${(systemResources.cpu_percent || 0).toFixed(1)}%</span>
+                    </div>
+                    <div class="component-item">
+                        <span class="component-label">Memory Usage</span>
+                        <span class="component-value">${(systemResources.memory_percent || 0).toFixed(1)}%</span>
+                    </div>
+                    <div class="component-item">
+                        <span class="component-label">Disk Usage</span>
+                        <span class="component-value">${(systemResources.disk_usage || 0).toFixed(1)}%</span>
+                    </div>
+                    <div class="component-item">
+                        <span class="component-label">Process Count</span>
+                        <span class="component-value">${systemResources.process_count || 0}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initial load
+        loadSystemHealth();
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadSystemHealth, 30000);
+    </script>
+</body>
+
+</html>

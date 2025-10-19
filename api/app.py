@@ -15,6 +15,7 @@ from .ingest_files import ingest_path
 from .logging_config import setup_logging, get_logger, log_request, log_llm_request, set_correlation_id
 from .query_history_dao import get_query_history_dao, QueryRecord
 from .file_watcher import start_file_monitoring, stop_file_monitoring
+from .scheduled_cleanup import start_scheduled_cleanup, stop_scheduled_cleanup
 import threading
 from pathlib import Path as _Path
 import uuid
@@ -64,22 +65,55 @@ async def _startup():
         # Start file monitoring if enabled
         if settings_local.auto_ingest_watch_mode:
             try:
-                start_file_monitoring()
-                logger.info("[startup] File monitoring started")
+                success = start_file_monitoring()
+                if success:
+                    logger.info("[startup] File monitoring started successfully")
+                else:
+                    logger.warning("[startup] File monitoring failed to start - check configuration")
             except Exception as e:
                 logger.error(f"[startup] Failed to start file monitoring: {e}")
+                # Try to start periodic checker as fallback
+                try:
+                    from .file_watcher import PeriodicFileChecker
+                    logger.info("[startup] Attempting to start periodic file checker as fallback")
+                    checker = PeriodicFileChecker()
+                    if checker.start():
+                        logger.info("[startup] Periodic file checker started as fallback")
+                except Exception as fallback_error:
+                    logger.error(f"[startup] Fallback file checker also failed: {fallback_error}")
+        
+        # Start scheduled cleanup service if enabled
+        if settings_local.enable_scheduled_cleanup:
+            try:
+                cleanup_success = start_scheduled_cleanup(cleanup_interval=settings_local.cleanup_interval)
+                if cleanup_success:
+                    logger.info(f"[startup] Scheduled cleanup service started (interval: {settings_local.cleanup_interval}s)")
+                else:
+                    logger.warning("[startup] Scheduled cleanup service failed to start")
+            except Exception as e:
+                logger.error(f"[startup] Failed to start scheduled cleanup service: {e}")
+        else:
+            logger.info("[startup] Scheduled cleanup service disabled in configuration")
     
-    # Start feedback monitoring service
-    try:
-        from .monitoring_service import start_monitoring
-        start_monitoring()
-        logger.info("[startup] Feedback monitoring service started")
-    except Exception as e:
-        logger.error(f"[startup] Failed to start monitoring service: {e}")
+
 
 @app.on_event("shutdown")
 async def _shutdown():
     """Application shutdown event."""
+    # Stop scheduled cleanup
+    try:
+        stop_scheduled_cleanup()
+        logger.info("[shutdown] Scheduled cleanup service stopped")
+    except Exception as e:
+        logger.error(f"[shutdown] Error stopping scheduled cleanup: {e}")
+    
+    # Stop file monitoring
+    try:
+        stop_file_monitoring()
+        logger.info("[shutdown] File monitoring stopped")
+    except Exception as e:
+        logger.error(f"[shutdown] Error stopping file monitoring: {e}")
+    
     llm = get_local_llm()
     try:
         await llm.close()
@@ -99,12 +133,7 @@ async def _shutdown():
     except Exception:
         pass
     
-    # Stop feedback monitoring service
-    try:
-        from .monitoring_service import stop_monitoring
-        stop_monitoring()
-    except Exception:
-        pass
+
 
 @app.get("/health", response_model=HealthResponse)
 async def health():
@@ -171,29 +200,13 @@ async def admin_panel():
 
 @app.get("/feedback-dashboard")
 async def feedback_dashboard():
-    """Serve feedback dashboard page."""
-    feedback_path = _static_dir / "feedback-stats.html"
+    """Serve comprehensive feedback dashboard page."""
+    feedback_path = _static_dir / "feedback-dashboard.html"
     if feedback_path.exists():
         return FileResponse(str(feedback_path))
     return {"message": "Feedback dashboard not found"}
 
 
-
-@app.get("/feedback-management")
-async def feedback_management():
-    """Serve enhanced feedback management page."""
-    feedback_mgmt_path = _static_dir / "feedback-management-enhanced.html"
-    if feedback_mgmt_path.exists():
-        return FileResponse(str(feedback_mgmt_path))
-    return {"message": "Feedback management page not found"}
-
-@app.get("/analytics-enhanced")
-async def analytics_enhanced():
-    """Serve enhanced analytics page."""
-    analytics_path = _static_dir / "analytics-enhanced.html"
-    if analytics_path.exists():
-        return FileResponse(str(analytics_path))
-    return {"message": "Enhanced analytics page not found"}
 
 @app.get("/monitoring-dashboard")
 async def monitoring_dashboard():
@@ -205,56 +218,34 @@ async def monitoring_dashboard():
 
 
 
-@app.get("/alert-management")
-async def alert_management_page():
-    """Serve alert management dashboard page."""
-    alert_mgmt_path = _static_dir / "alert-management.html"
-    if alert_mgmt_path.exists():
-        return FileResponse(str(alert_mgmt_path))
-    return {"message": "Alert management page not found"}
+
 
 # Admin HTML Pages
 
 
-@app.get("/health-check")
-async def health_check_page():
-    """Serve health check page."""
-    health_path = _static_dir / "health.html"
-    if health_path.exists():
-        return FileResponse(str(health_path))
-    return {"message": "Health check page not found"}
+@app.get("/admin/system")
+async def system_dashboard():
+    """Serve consolidated system dashboard with health, debug, and stats."""
+    # Try to serve a consolidated dashboard, fallback to admin panel
+    system_path = _static_dir / "system-dashboard.html"
+    if system_path.exists():
+        return FileResponse(str(system_path))
+    
+    # Fallback to admin panel if consolidated dashboard doesn't exist
+    admin_path = _static_dir / "admin.html"
+    if admin_path.exists():
+        return FileResponse(str(admin_path))
+    
+    return {"message": "System dashboard not found"}
 
-@app.get("/database-debug")
-async def database_debug_page():
-    """Serve database debug page."""
-    db_debug_path = _static_dir / "database-debug.html"
-    if db_debug_path.exists():
-        return FileResponse(str(db_debug_path))
-    return {"message": "Database debug page not found"}
+@app.get("/admin/debug")
+async def debug_dashboard():
+    """Serve comprehensive debug dashboard."""
+    debug_path = _static_dir / "debug-dashboard.html"
+    if debug_path.exists():
+        return FileResponse(str(debug_path))
+    return {"message": "Debug dashboard not found"}
 
-@app.get("/system-stats")
-async def system_stats_page():
-    """Serve system statistics page."""
-    stats_path = _static_dir / "system-stats.html"
-    if stats_path.exists():
-        return FileResponse(str(stats_path))
-    return {"message": "System stats page not found"}
-
-@app.get("/search-debug")
-async def search_debug_page():
-    """Serve search debug page."""
-    search_debug_path = _static_dir / "search-debug.html"
-    if search_debug_path.exists():
-        return FileResponse(str(search_debug_path))
-    return {"message": "Search debug page not found"}
-
-@app.get("/keyword-search-debug")
-async def keyword_search_debug_page():
-    """Serve keyword search debug page."""
-    keyword_debug_path = _static_dir / "keyword-search-debug.html"
-    if keyword_debug_path.exists():
-        return FileResponse(str(keyword_debug_path))
-    return {"message": "Keyword search debug page not found"}
 
 @app.get("/info")
 async def info():
@@ -487,188 +478,437 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
         )
 
 
-@app.get("/debug/database")
-async def debug_database():
-    """Debug database connection and document count."""
+@app.get("/api/system-health")
+async def get_system_health():
+    """Get comprehensive system health including database, file monitoring, and system resources."""
     try:
+        from .file_watcher import is_file_monitoring_active
+        from pathlib import Path
+        import psutil
+        import os
+        
         dao = get_dao()
-        total_docs = dao.count_documents()
-        docs_by_source = dao.count_documents_by_source()
-
-        return {
-            "status": "connected",
-            "total_documents": total_docs,
-            "documents_by_source": docs_by_source,
-            "database_url_configured": bool(settings.database_url),
-            "db_host_configured": bool(settings.db_host),
-            "auto_ingest_path": settings.auto_ingest_path,
-            "auto_ingest_enabled": settings.auto_ingest_on_start
+        
+        # Database health
+        db_health = {"status": "unknown"}
+        try:
+            total_docs = dao.count_documents()
+            docs_by_source = dao.count_documents_by_source()
+            db_health = {
+                "status": "healthy",
+                "total_documents": total_docs,
+                "unique_sources": len(docs_by_source),
+                "documents_by_source": docs_by_source[:10],  # First 10 for overview
+                "connection": "ok",
+                "database_url_configured": bool(settings.database_url),
+                "db_host_configured": bool(settings.db_host)
+            }
+        except Exception as e:
+            db_health = {
+                "status": "error",
+                "error": str(e),
+                "database_url_configured": bool(settings.database_url),
+                "db_host_configured": bool(settings.db_host)
+            }
+        
+        # File monitoring health
+        monitoring_health = {
+            "enabled": settings.auto_ingest_watch_mode,
+            "active": is_file_monitoring_active(),
+            "watch_interval": settings.auto_ingest_watch_interval,
+            "auto_ingest_on_start": settings.auto_ingest_on_start
         }
-    except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e),
-            "database_url_configured": bool(settings.database_url),
-            "db_host_configured": bool(settings.db_host),
-            "auto_ingest_path": settings.auto_ingest_path,
-            "auto_ingest_enabled": settings.auto_ingest_on_start
+        
+        # Auto-ingest path health
+        path_health = {"configured": False}
+        if settings.auto_ingest_path:
+            ingest_path = Path(settings.auto_ingest_path)
+            path_health = {
+                "configured": True,
+                "path": settings.auto_ingest_path,
+                "exists": ingest_path.exists(),
+                "readable": False,
+                "file_count": 0
+            }
+            
+            if ingest_path.exists():
+                try:
+                    # Test readability
+                    list(ingest_path.iterdir())
+                    path_health["readable"] = True
+                    
+                    # Count files
+                    for ext in ['.pdf', '.docx', '.txt', '.md', '.markdown']:
+                        path_health["file_count"] += len(list(ingest_path.rglob(f'*{ext}')))
+                except Exception as e:
+                    path_health["error"] = str(e)
+        
+        # System resources
+        system_health = {
+            "cpu_percent": psutil.cpu_percent(interval=1),
+            "memory_percent": psutil.virtual_memory().percent,
+            "disk_usage": psutil.disk_usage('/').percent if os.name != 'nt' else psutil.disk_usage('C:').percent,
+            "process_count": len(psutil.pids())
         }
-
-
-@app.get("/debug/search")
-async def debug_search(query: str = "OMH Harp program admission criteria"):
-    """Debug search functionality."""
-    try:
-        vectors = await embed_texts([query])
-        query_vec = vectors[0]
-        dao = get_dao()
-
-        if settings.enable_hybrid_search:
-            matches = dao.search_hybrid(query_vec, query, top_k=5)
-        else:
-            matches = dao.search_combined(query_vec, query, top_k=5)
-
-        return {
-            "query": query,
-            "embedding_dimension": len(query_vec),
-            "matches_found": len(matches),
-            "matches": [
-                {
-                    "id": doc_id,
-                    "source_file": source_file,
-                    "score": float(score),
-                    "content_preview": content[:200] + "..." if len(content) > 200 else content
-                }
-                for doc_id, content, score, source_file in matches
-            ]
-        }
-    except Exception as e:
-        return {
-            "query": query,
-            "error": str(e),
-            "error_type": type(e).__name__
-        }
-
-
-@app.get("/debug/keyword-search")
-async def debug_keyword_search(query: str = "recovery-oriented"):
-    """Debug keyword search functionality."""
-    try:
-        dao = get_dao()
-        matches = dao.search_keyword(query, top_k=10)
-
-        return {
-            "query": query,
-            "search_type": "keyword",
-            "matches_found": len(matches),
-            "matches": [
-                {
-                    "id": doc_id,
-                    "source_file": source_file,
-                    "score": float(score),
-                    "content_preview": content[:300] + "..." if len(content) > 300 else content
-                }
-                for doc_id, content, score, source_file in matches
-            ]
-        }
-    except Exception as e:
-        return {
-            "query": query,
-            "error": str(e),
-            "error_type": type(e).__name__
-        }
-
-
-@app.get("/debug/test-keyword")
-async def debug_test_keyword(query: str = "policy"):
-    """Test keyword search directly."""
-    try:
-        dao = get_dao()
-        results = dao.search_keyword(query, top_k=5)
+        
+        # Overall health assessment
+        issues = []
+        if db_health["status"] != "healthy":
+            issues.append("Database connection issues")
+        if monitoring_health["enabled"] and not monitoring_health["active"]:
+            issues.append("File monitoring not active")
+        if path_health["configured"] and not path_health.get("exists", False):
+            issues.append("Auto-ingest path does not exist")
+        if path_health.get("exists", False) and not path_health.get("readable", False):
+            issues.append("Auto-ingest path not readable")
+        if system_health["memory_percent"] > 90:
+            issues.append("High memory usage")
+        if system_health["cpu_percent"] > 90:
+            issues.append("High CPU usage")
+        
+        overall_status = "healthy" if not issues else "degraded" if len(issues) <= 2 else "critical"
         
         return {
+            "overall_status": overall_status,
+            "issues": issues,
+            "components": {
+                "database": db_health,
+                "file_monitoring": monitoring_health,
+                "auto_ingest_path": path_health,
+                "system_resources": system_health
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get system health: {e}")
+        return {
+            "overall_status": "error",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@app.get("/api/debug/search")
+async def debug_search_comprehensive(
+    query: str = Query("policy", description="Search query to test"),
+    search_type: str = Query("all", regex="^(all|keyword|semantic|hybrid)$", description="Type of search to test")
+):
+    """Comprehensive search debugging endpoint."""
+    try:
+        dao = get_dao()
+        results = {
             "query": query,
             "total_docs_in_db": dao.count_documents(),
-            "keyword_results_count": len(results),
-            "results": [
-                {
-                    "id": doc_id,
-                    "score": score,
-                    "content_preview": content[:300],
-                    "source": source_file
-                }
-                for doc_id, content, score, source_file in results
-            ]
+            "search_types_tested": []
         }
+        
+        # Test keyword search
+        if search_type in ["all", "keyword"]:
+            try:
+                keyword_results = dao.search_keyword(query, top_k=5)
+                results["keyword_search"] = {
+                    "success": True,
+                    "results_count": len(keyword_results),
+                    "results": [
+                        {
+                            "id": doc_id,
+                            "score": float(score),
+                            "content_preview": content[:200] + "..." if len(content) > 200 else content,
+                            "source": source_file
+                        }
+                        for doc_id, content, score, source_file in keyword_results[:3]
+                    ]
+                }
+                results["search_types_tested"].append("keyword")
+            except Exception as e:
+                results["keyword_search"] = {"success": False, "error": str(e)}
+        
+        # Test semantic search
+        if search_type in ["all", "semantic"]:
+            try:
+                vectors = await embed_texts([query])
+                if vectors:
+                    semantic_results = dao.search(vectors[0], top_k=5)
+                    results["semantic_search"] = {
+                        "success": True,
+                        "embedding_dimension": len(vectors[0]),
+                        "results_count": len(semantic_results),
+                        "results": [
+                            {
+                                "id": doc_id,
+                                "score": float(score),
+                                "content_preview": content[:200] + "..." if len(content) > 200 else content,
+                                "source": source_file
+                            }
+                            for doc_id, content, score, source_file in semantic_results[:3]
+                        ]
+                    }
+                    results["search_types_tested"].append("semantic")
+                else:
+                    results["semantic_search"] = {"success": False, "error": "No embeddings generated"}
+            except Exception as e:
+                results["semantic_search"] = {"success": False, "error": str(e)}
+        
+        # Test hybrid search if enabled
+        if search_type in ["all", "hybrid"] and settings.enable_hybrid_search:
+            try:
+                vectors = await embed_texts([query])
+                if vectors:
+                    hybrid_results = dao.search_hybrid(vectors[0], query, top_k=5)
+                    results["hybrid_search"] = {
+                        "success": True,
+                        "results_count": len(hybrid_results),
+                        "results": [
+                            {
+                                "id": doc_id,
+                                "score": float(score),
+                                "content_preview": content[:200] + "..." if len(content) > 200 else content,
+                                "source": source_file
+                            }
+                            for doc_id, content, score, source_file in hybrid_results[:3]
+                        ]
+                    }
+                    results["search_types_tested"].append("hybrid")
+            except Exception as e:
+                results["hybrid_search"] = {"success": False, "error": str(e)}
+        
+        return results
+        
     except Exception as e:
+        return {
+            "query": query,
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
+
+@app.get("/debug/file-monitoring")
+async def debug_file_monitoring():
+    """Debug file monitoring system status and sync issues."""
+    try:
+        from .file_watcher import is_file_monitoring_active
+        from .file_cleanup import get_database_file_status, cleanup_orphaned_documents
+        from .scheduled_cleanup import is_scheduled_cleanup_active, get_cleanup_service_status
+        from pathlib import Path
+        
+        settings = get_settings()
+        dao = get_dao()
+        
+        # Check file monitoring status
+        monitoring_active = is_file_monitoring_active()
+        
+        # Check auto-ingest path
+        auto_ingest_path = settings.auto_ingest_path
+        path_exists = False
+        path_readable = False
+        file_count = 0
+        
+        if auto_ingest_path:
+            ingest_path = Path(auto_ingest_path)
+            path_exists = ingest_path.exists()
+            if path_exists:
+                try:
+                    path_readable = True
+                    # Count supported files
+                    for ext in ['.pdf', '.docx', '.txt', '.md', '.markdown']:
+                        file_count += len(list(ingest_path.rglob(f'*{ext}')))
+                except Exception:
+                    path_readable = False
+        
+        # Get database vs filesystem sync status
+        sync_status = {}
+        if auto_ingest_path and path_exists:
+            try:
+                sync_status = get_database_file_status(Path(auto_ingest_path))
+            except Exception as e:
+                sync_status = {"error": str(e)}
+        
+        # Get database document count
+        total_docs = dao.count_documents()
+        docs_by_source = dao.count_documents_by_source()
+        
+        # Get cleanup service status
+        cleanup_active = is_scheduled_cleanup_active()
+        cleanup_status = get_cleanup_service_status()
+        
+        return {
+            "file_monitoring": {
+                "enabled_in_config": settings.auto_ingest_watch_mode,
+                "currently_active": monitoring_active,
+                "watch_interval_seconds": settings.auto_ingest_watch_interval,
+                "status": "active" if monitoring_active else "inactive"
+            },
+            "scheduled_cleanup": {
+                "enabled_in_config": settings.enable_scheduled_cleanup,
+                "currently_active": cleanup_active,
+                "cleanup_interval_seconds": cleanup_status.get("interval"),
+                "status": cleanup_status.get("message", "unknown")
+            },
+            "auto_ingest_path": {
+                "configured_path": auto_ingest_path,
+                "path_exists": path_exists,
+                "path_readable": path_readable,
+                "supported_files_count": file_count
+            },
+            "database_status": {
+                "total_documents": total_docs,
+                "unique_source_files": len(docs_by_source),
+                "documents_by_source": docs_by_source[:10]  # Show first 10
+            },
+            "sync_analysis": sync_status,
+            "diagnosis": _diagnose_file_monitoring_issues(
+                monitoring_active, 
+                settings.auto_ingest_watch_mode,
+                path_exists,
+                path_readable,
+                file_count,
+                total_docs,
+                sync_status
+            )
+        }
+        
+    except Exception as e:
+        return {
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
+
+@app.post("/debug/sync-filesystem")
+async def sync_filesystem():
+    """Manually sync database with filesystem and clean up orphaned documents."""
+    try:
+        from .file_cleanup import cleanup_orphaned_documents, sync_database_with_filesystem
+        from pathlib import Path
+        
+        settings = get_settings()
+        
+        if not settings.auto_ingest_path:
+            return {"error": "No auto-ingest path configured"}
+        
+        ingest_path = Path(settings.auto_ingest_path)
+        if not ingest_path.exists():
+            return {"error": f"Auto-ingest path does not exist: {ingest_path}"}
+        
+        # Step 1: Clean up orphaned documents
+        removed_count, removed_files, cache_invalidated = cleanup_orphaned_documents(ingest_path)
+        
+        # Step 2: Get comprehensive sync status
+        sync_results = sync_database_with_filesystem(ingest_path)
+        
+        return {
+            "success": True,
+            "cleanup_results": {
+                "orphaned_documents_removed": removed_count,
+                "orphaned_files": removed_files,
+                "cache_entries_invalidated": cache_invalidated
+            },
+            "sync_results": sync_results,
+            "message": f"Cleaned up {removed_count} orphaned documents from {len(removed_files)} files"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to sync filesystem: {e}")
         return {"error": str(e)}
 
 
-@app.get("/debug/simple-search")
-async def debug_simple_search(query: str = "policy"):
-    """Simple search test to bypass RAG complexity."""
+@app.post("/debug/restart-file-monitoring")
+async def restart_file_monitoring():
+    """Restart the file monitoring system."""
     try:
-        dao = get_dao()
+        from .file_watcher import stop_file_monitoring, start_file_monitoring, is_file_monitoring_active
         
-        # Test 1: Direct keyword search
-        keyword_results = dao.search_keyword(query, top_k=3)
+        # Stop current monitoring
+        stop_file_monitoring()
         
-        # Test 2: Try to get embeddings
-        try:
-            from .embeddings import embed_texts
-            vectors = await embed_texts([query])
-            embedding_success = True
-            embedding_dim = len(vectors[0]) if vectors else 0
-            
-            # Test 3: Direct semantic search
-            if vectors:
-                semantic_results = dao.search(vectors[0], top_k=3)
-            else:
-                semantic_results = []
-        except Exception as e:
-            embedding_success = False
-            embedding_error = str(e)
-            semantic_results = []
-            embedding_dim = 0
+        # Wait a moment
+        import time
+        time.sleep(1)
+        
+        # Start monitoring
+        success = start_file_monitoring()
+        
+        # Check if it's running
+        is_active = is_file_monitoring_active()
         
         return {
-            "query": query,
-            "database_docs": dao.count_documents(),
-            "keyword_search": {
-                "results_count": len(keyword_results),
-                "results": [
-                    {
-                        "id": doc_id,
-                        "score": score,
-                        "content_preview": content[:200] + "..." if len(content) > 200 else content,
-                        "source": source_file
-                    }
-                    for doc_id, content, score, source_file in keyword_results[:2]
-                ]
-            },
-            "embedding_test": {
-                "success": embedding_success,
-                "dimension": embedding_dim,
-                "error": embedding_error if not embedding_success else None
-            },
-            "semantic_search": {
-                "results_count": len(semantic_results),
-                "results": [
-                    {
-                        "id": doc_id,
-                        "score": score,
-                        "content_preview": content[:200] + "..." if len(content) > 200 else content,
-                        "source": source_file
-                    }
-                    for doc_id, content, score, source_file in semantic_results[:2]
-                ]
-            }
+            "success": success,
+            "monitoring_active": is_active,
+            "message": "File monitoring restarted successfully" if success else "Failed to restart file monitoring"
         }
+        
     except Exception as e:
+        return {"error": str(e), "success": False}
+
+
+@app.post("/debug/restart-cleanup-service")
+async def restart_cleanup_service():
+    """Restart the scheduled cleanup service."""
+    try:
+        from .scheduled_cleanup import stop_scheduled_cleanup, start_scheduled_cleanup, get_cleanup_service_status
+        
+        settings = get_settings()
+        
+        # Stop current service
+        stop_scheduled_cleanup()
+        
+        # Wait a moment
+        import time
+        time.sleep(1)
+        
+        # Start service if enabled
+        if settings.enable_scheduled_cleanup:
+            success = start_scheduled_cleanup(cleanup_interval=settings.cleanup_interval)
+            status = get_cleanup_service_status()
+            
+            return {
+                "success": success,
+                "service_active": status.get("active", False),
+                "cleanup_interval": status.get("interval"),
+                "message": f"Cleanup service restarted successfully (interval: {settings.cleanup_interval}s)" if success else "Failed to restart cleanup service"
+            }
+        else:
+            return {
+                "success": False,
+                "service_active": False,
+                "message": "Cleanup service is disabled in configuration"
+            }
+            
+    except Exception as e:
+        return {"error": str(e), "success": False}
+
+
+@app.post("/debug/run-cleanup-now")
+async def run_cleanup_now():
+    """Manually trigger orphaned document cleanup."""
+    try:
+        from .file_cleanup import cleanup_orphaned_documents
+        from pathlib import Path
+        
+        settings = get_settings()
+        
+        if not settings.auto_ingest_path:
+            return {"error": "No auto-ingest path configured", "success": False}
+        
+        base_path = Path(settings.auto_ingest_path)
+        if not base_path.exists():
+            return {"error": f"Auto-ingest path does not exist: {base_path}", "success": False}
+        
+        # Run cleanup
+        removed_count, removed_files, cache_invalidated = cleanup_orphaned_documents(base_path)
+        
         return {
-            "error": str(e),
-            "error_type": type(e).__name__
+            "success": True,
+            "orphaned_documents_removed": removed_count,
+            "orphaned_files": [Path(f).name for f in removed_files],
+            "cache_entries_invalidated": cache_invalidated,
+            "message": f"Cleaned up {removed_count} orphaned documents from {len(removed_files)} files"
         }
+        
+    except Exception as e:
+        logger.error(f"Failed to restart file monitoring: {e}")
+        return {"error": str(e)}
 
 
 @app.get("/debug/rag-flow")
@@ -784,31 +1024,59 @@ def _diagnose_rag_issue(doc_count, embedding_success, retrieval_success, context
         return "No issues detected"
 
 
+def _diagnose_file_monitoring_issues(monitoring_active, watch_mode_enabled, path_exists, path_readable, file_count, total_docs, sync_status):
+    """Diagnose file monitoring and sync issues."""
+    issues = []
+    recommendations = []
+    
+    if not watch_mode_enabled:
+        issues.append("File watching is disabled in configuration")
+        recommendations.append("Set AUTO_INGEST_WATCH_MODE=true in .env file")
+    
+    if watch_mode_enabled and not monitoring_active:
+        issues.append("File monitoring is enabled but not running")
+        recommendations.append("Restart the application or use /debug/restart-file-monitoring endpoint")
+    
+    if not path_exists:
+        issues.append("Auto-ingest path does not exist")
+        recommendations.append("Check AUTO_INGEST_PATH in .env file and ensure directory exists")
+    elif not path_readable:
+        issues.append("Auto-ingest path is not readable")
+        recommendations.append("Check directory permissions for the configured path")
+    
+    if file_count == 0 and path_exists:
+        issues.append("No supported files found in auto-ingest directory")
+        recommendations.append("Add .pdf, .docx, .txt, or .md files to the auto-ingest directory")
+    
+    if isinstance(sync_status, dict) and sync_status.get("sync_status") == "out_of_sync":
+        orphaned_count = len(sync_status.get("orphaned_in_database", []))
+        missing_count = len(sync_status.get("missing_from_database", []))
+        
+        if orphaned_count > 0:
+            issues.append(f"{orphaned_count} files in database but not on filesystem")
+            recommendations.append("Use /debug/sync-filesystem endpoint to clean up orphaned documents")
+        
+        if missing_count > 0:
+            issues.append(f"{missing_count} files on filesystem but not in database")
+            recommendations.append("Files may need to be re-ingested - check file monitoring or run manual ingestion")
+    
+    if not issues:
+        return {
+            "status": "healthy",
+            "message": "File monitoring system appears to be working correctly"
+        }
+    else:
+        return {
+            "status": "issues_detected",
+            "issues": issues,
+            "recommendations": recommendations
+        }
+
+
 # Configuration validation endpoints removed for simplicity
 
 
-@app.get("/stats")
-async def get_stats():
-    """Get application statistics."""
-    try:
-        dao = get_dao()
-        total_docs = dao.count_documents()
-        docs_by_source = dao.count_documents_by_source()
 
-        # Statistics retrieved successfully
-
-        return {
-            "total_documents": total_docs,
-            "documents_by_source": docs_by_source,
-            "features_enabled": {
-                "streaming": settings.enable_streaming,
-                "conversation_memory": settings.enable_conversation_memory,
-                "hybrid_search": settings.enable_hybrid_search
-            }
-        }
-    except Exception as e:
-        logger.error(f"Failed to get stats: {e}")
-        return {"error": str(e)}
 
 # Query History API Endpoints
 
@@ -900,10 +1168,7 @@ class FeedbackRequest(BaseModel):
     comments: Optional[str] = None
     user_session: Optional[str] = None
 
-class BulkAlertAction(BaseModel):
-    alert_ids: List[int]
-    action: str  # 'acknowledge' or 'resolve'
-    user: str = "admin"
+
 
 @app.post("/api/feedback")
 async def submit_feedback(feedback_req: FeedbackRequest):
@@ -959,7 +1224,7 @@ async def get_feedback_stats(days: int = Query(30, ge=1, le=365)):
         return {"error": str(e)}
 
 @app.get("/api/feedback/recent")
-async def get_recent_feedback(limit: int = Query(10, ge=1, le=50)):
+async def get_recent_feedback(limit: int = Query(10, ge=1, le=200)):
     """Get recent feedback entries."""
     try:
         from .feedback_clean import get_clean_feedback_dao
@@ -1236,261 +1501,7 @@ async def get_community_impact():
         logger.error(f"Failed to get community impact: {e}")
         return {"error": str(e)}
 
-# Alert Management API Endpoints
 
-@app.get("/api/alerts")
-async def get_alerts(
-    limit: int = Query(50, ge=1, le=100),
-    status: Optional[str] = Query(None),
-    severity: Optional[str] = Query(None)
-):
-    """Get feedback alerts with optional filtering."""
-    try:
-        from .alerting_system import get_alert_dao
-        
-        alert_dao = get_alert_dao()
-        
-        # Get alerts based on filters
-        if status or severity:
-            # Custom filtering logic
-            with alert_dao.dao.get_connection() as conn:
-                with conn.cursor() as cur:
-                    where_conditions = []
-                    params = []
-                    
-                    if status:
-                        where_conditions.append("status = %s")
-                        params.append(status)
-                    else:
-                        where_conditions.append("status IN ('active', 'acknowledged')")
-                    
-                    if severity:
-                        where_conditions.append("severity = %s")
-                        params.append(severity)
-                    
-                    params.append(limit)
-                    
-                    cur.execute(f"""
-                        SELECT 
-                            id, alert_type, severity, title, description,
-                            trigger_conditions, related_feedback_ids, status,
-                            acknowledged_by, acknowledged_at, resolved_by, resolved_at, created_at
-                        FROM feedback_alerts 
-                        WHERE {' AND '.join(where_conditions)}
-                        ORDER BY 
-                            CASE severity 
-                                WHEN 'critical' THEN 1 
-                                WHEN 'high' THEN 2 
-                                WHEN 'medium' THEN 3 
-                                WHEN 'low' THEN 4 
-                            END,
-                            created_at DESC
-                        LIMIT %s;
-                    """, params)
-                    
-                    columns = ['id', 'alert_type', 'severity', 'title', 'description',
-                              'trigger_conditions', 'related_feedback_ids', 'status',
-                              'acknowledged_by', 'acknowledged_at', 'resolved_by', 'resolved_at', 'created_at']
-                    
-                    alerts = []
-                    for row in cur.fetchall():
-                        alert_dict = dict(zip(columns, row))
-                        if alert_dict['trigger_conditions']:
-                            import json
-                            alert_dict['trigger_conditions'] = json.loads(alert_dict['trigger_conditions'])
-                        alerts.append(alert_dict)
-        else:
-            alerts = alert_dao.get_active_alerts(limit=limit)
-        
-        return {
-            "alerts": alerts,
-            "count": len(alerts)
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get alerts: {e}")
-        return {"error": str(e)}
-
-@app.post("/api/alerts/{alert_id}/acknowledge")
-async def acknowledge_alert(alert_id: int, user: str = Query("admin")):
-    """Acknowledge an alert."""
-    try:
-        from .alerting_system import get_alert_dao
-        
-        alert_dao = get_alert_dao()
-        success = alert_dao.update_alert_status(alert_id, "acknowledged", user)
-        
-        if success:
-            return {
-                "success": True,
-                "message": f"Alert {alert_id} acknowledged by {user}"
-            }
-        else:
-            return {"error": "Alert not found or already processed"}
-        
-    except Exception as e:
-        logger.error(f"Failed to acknowledge alert {alert_id}: {e}")
-        return {"error": str(e)}
-
-@app.post("/api/alerts/{alert_id}/resolve")
-async def resolve_alert(alert_id: int, user: str = Query("admin")):
-    """Resolve an alert."""
-    try:
-        from .alerting_system import get_alert_dao
-        
-        alert_dao = get_alert_dao()
-        success = alert_dao.update_alert_status(alert_id, "resolved", user)
-        
-        if success:
-            return {
-                "success": True,
-                "message": f"Alert {alert_id} resolved by {user}"
-            }
-        else:
-            return {"error": "Alert not found or already processed"}
-        
-    except Exception as e:
-        logger.error(f"Failed to resolve alert {alert_id}: {e}")
-        return {"error": str(e)}
-
-@app.get("/api/alerts/summary")
-async def get_alert_summary(days: int = Query(7, ge=1, le=30)):
-    """Get alert summary statistics."""
-    try:
-        from .alerting_system import get_alert_dao
-        
-        alert_dao = get_alert_dao()
-        summary = alert_dao.get_alert_summary(days=days)
-        
-        return {
-            "time_period_days": days,
-            "summary": summary
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get alert summary: {e}")
-        return {"error": str(e)}
-
-@app.post("/api/alerts/check")
-async def run_alert_check():
-    """Manually trigger an alert monitoring check."""
-    try:
-        from .monitoring_service import run_immediate_check
-        
-        result = run_immediate_check()
-        return result
-        
-    except Exception as e:
-        logger.error(f"Failed to run alert check: {e}")
-        return {"error": str(e)}
-
-@app.get("/api/monitoring/status")
-async def get_monitoring_status():
-    """Get monitoring service status and health."""
-    try:
-        from .monitoring_service import get_monitoring_health
-        
-        health = get_monitoring_health()
-        return health
-        
-    except Exception as e:
-        logger.error(f"Failed to get monitoring status: {e}")
-        return {"error": str(e)}
-
-@app.post("/api/alerts/bulk-action")
-async def bulk_alert_action(action_request: BulkAlertAction):
-    """Perform bulk actions on alerts."""
-    try:
-        from .alerting_system import get_alert_dao
-        
-        alert_dao = get_alert_dao()
-        
-        if action_request.action not in ['acknowledge', 'resolve']:
-            return {"error": "Invalid action. Must be 'acknowledge' or 'resolve'"}
-        
-        success_count = 0
-        failed_count = 0
-        
-        for alert_id in action_request.alert_ids:
-            try:
-                success = alert_dao.update_alert_status(
-                    alert_id, 
-                    action_request.action, 
-                    action_request.user
-                )
-                if success:
-                    success_count += 1
-                else:
-                    failed_count += 1
-            except Exception as e:
-                logger.error(f"Failed to {action_request.action} alert {alert_id}: {e}")
-                failed_count += 1
-        
-        return {
-            "success": True,
-            "action": action_request.action,
-            "processed": len(action_request.alert_ids),
-            "successful": success_count,
-            "failed": failed_count,
-            "user": action_request.user
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to perform bulk alert action: {e}")
-        return {"error": str(e)}
-
-@app.get("/api/alerts/config")
-async def get_alert_config():
-    """Get current alert configuration and thresholds."""
-    try:
-        from .alerting_system import get_feedback_monitor
-        
-        monitor = get_feedback_monitor()
-        thresholds = monitor.thresholds
-        
-        return {
-            "thresholds": {
-                "min_rating_threshold": thresholds.min_rating_threshold,
-                "accuracy_rate_threshold": thresholds.accuracy_rate_threshold,
-                "accuracy_drop_threshold": thresholds.accuracy_drop_threshold,
-                "volume_spike_multiplier": thresholds.volume_spike_multiplier,
-                "volume_drop_threshold": thresholds.volume_drop_threshold,
-                "min_feedback_count": thresholds.min_feedback_count,
-                "pattern_confidence_threshold": thresholds.pattern_confidence_threshold
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get alert config: {e}")
-        return {"error": str(e)}
-
-@app.post("/api/alerts/config")
-async def update_alert_config():
-    """Update alert configuration and thresholds."""
-    try:
-        # This would need request body parsing for threshold updates
-        # For now, return current config
-        from .alerting_system import get_feedback_monitor
-        
-        monitor = get_feedback_monitor()
-        
-        return {
-            "success": True,
-            "message": "Alert configuration endpoint ready for implementation",
-            "current_thresholds": {
-                "min_rating_threshold": monitor.thresholds.min_rating_threshold,
-                "accuracy_rate_threshold": monitor.thresholds.accuracy_rate_threshold,
-                "accuracy_drop_threshold": monitor.thresholds.accuracy_drop_threshold,
-                "volume_spike_multiplier": monitor.thresholds.volume_spike_multiplier,
-                "volume_drop_threshold": monitor.thresholds.volume_drop_threshold,
-                "min_feedback_count": monitor.thresholds.min_feedback_count,
-                "pattern_confidence_threshold": monitor.thresholds.pattern_confidence_threshold
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to update alert config: {e}")
-        return {"error": str(e)}
 
 # Admin Feedback Management Endpoints
 
@@ -1640,125 +1651,7 @@ async def export_feedback_data(
         logger.error(f"Failed to export feedback data: {e}")
         return {"error": str(e)}
 
-# Alerting and Monitoring API Endpoints
 
-@app.get("/api/admin/alerts")
-async def get_active_alerts(limit: int = Query(50, ge=1, le=100)):
-    """Get active feedback alerts."""
-    try:
-        from .alerting_system import get_alert_dao
-        
-        alert_dao = get_alert_dao()
-        alerts = alert_dao.get_active_alerts(limit=limit)
-        
-        return {"alerts": alerts}
-        
-    except Exception as e:
-        logger.error(f"Failed to get alerts: {e}")
-        return {"error": str(e)}
-
-@app.put("/api/admin/alerts/{alert_id}")
-async def update_alert_status(alert_id: int, update_data: dict):
-    """Update alert status (acknowledge or resolve)."""
-    try:
-        from .alerting_system import get_alert_dao
-        
-        alert_dao = get_alert_dao()
-        status = update_data.get('status')
-        user = update_data.get('user', 'admin')
-        
-        if status not in ['acknowledged', 'resolved', 'active']:
-            return {"error": "Invalid status. Must be 'acknowledged', 'resolved', or 'active'"}
-        
-        success = alert_dao.update_alert_status(alert_id, status, user)
-        
-        if success:
-            return {"success": True, "message": f"Alert {status} successfully"}
-        else:
-            return {"error": "Failed to update alert"}
-            
-    except Exception as e:
-        logger.error(f"Failed to update alert: {e}")
-        return {"error": str(e)}
-
-@app.get("/api/admin/alerts/summary")
-async def get_alert_summary(days: int = Query(7, ge=1, le=30)):
-    """Get alert summary statistics."""
-    try:
-        from .alerting_system import get_alert_dao
-        
-        alert_dao = get_alert_dao()
-        summary = alert_dao.get_alert_summary(days=days)
-        
-        return {
-            "time_period_days": days,
-            "summary": summary
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get alert summary: {e}")
-        return {"error": str(e)}
-
-@app.post("/api/admin/monitoring/run")
-async def run_monitoring_cycle():
-    """Manually trigger a monitoring cycle."""
-    try:
-        from .alerting_system import get_feedback_monitor
-        
-        monitor = get_feedback_monitor()
-        alerts = monitor.run_monitoring_cycle()
-        
-        return {
-            "success": True,
-            "alerts_generated": len(alerts),
-            "alerts": [
-                {
-                    "type": alert.alert_type.value,
-                    "severity": alert.severity.value,
-                    "title": alert.title,
-                    "description": alert.description
-                }
-                for alert in alerts
-            ]
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to run monitoring cycle: {e}")
-        return {"error": str(e)}
-
-@app.get("/api/admin/monitoring/metrics")
-async def get_monitoring_metrics(hours: int = Query(24, ge=1, le=168)):
-    """Get current feedback monitoring metrics."""
-    try:
-        from .alerting_system import get_feedback_monitor
-        
-        monitor = get_feedback_monitor()
-        current_metrics = monitor.get_feedback_metrics(hours=hours)
-        baseline_metrics = monitor.get_feedback_metrics_baseline()
-        
-        return {
-            "time_period_hours": hours,
-            "current_metrics": {
-                "total_feedback": current_metrics.total_feedback,
-                "avg_rating": current_metrics.avg_rating,
-                "accuracy_rate": current_metrics.accuracy_rate,
-                "helpfulness_rate": current_metrics.helpfulness_rate,
-                "unique_sessions": current_metrics.unique_sessions,
-                "avg_quality_score": current_metrics.avg_quality_score
-            },
-            "baseline_metrics": {
-                "total_feedback": baseline_metrics.total_feedback,
-                "avg_rating": baseline_metrics.avg_rating,
-                "accuracy_rate": baseline_metrics.accuracy_rate,
-                "helpfulness_rate": baseline_metrics.helpfulness_rate,
-                "unique_sessions": baseline_metrics.unique_sessions,
-                "avg_quality_score": baseline_metrics.avg_quality_score
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get monitoring metrics: {e}")
-        return {"error": str(e)}
 
 # Improvement Tracking API Endpoints
 
@@ -1875,125 +1768,7 @@ async def auto_measure_improvements(days_back: int = Query(7, ge=1, le=30)):
         logger.error(f"Failed to auto-measure improvements: {e}")
         return {"error": str(e)}
 
-# Monitoring Service Management Endpoints
 
-@app.get("/api/admin/monitoring/status")
-async def get_monitoring_status():
-    """Get monitoring service status."""
-    try:
-        from .monitoring_service import get_monitoring_service, get_monitoring_health
-        
-        service = get_monitoring_service()
-        health = get_monitoring_health()
-        
-        return {
-            "service_status": service.get_status(),
-            "health": health
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get monitoring status: {e}")
-        return {"error": str(e)}
-
-@app.post("/api/admin/monitoring/start")
-async def start_monitoring_service():
-    """Start the monitoring service."""
-    try:
-        from .monitoring_service import get_monitoring_service
-        
-        service = get_monitoring_service()
-        service.start()
-        
-        return {
-            "success": True,
-            "message": "Monitoring service started"
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to start monitoring service: {e}")
-        return {"error": str(e)}
-
-@app.post("/api/admin/monitoring/stop")
-async def stop_monitoring_service():
-    """Stop the monitoring service."""
-    try:
-        from .monitoring_service import get_monitoring_service
-        
-        service = get_monitoring_service()
-        service.stop()
-        
-        return {
-            "success": True,
-            "message": "Monitoring service stopped"
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to stop monitoring service: {e}")
-        return {"error": str(e)}
-
-@app.post("/api/admin/monitoring/check")
-async def run_immediate_monitoring_check():
-    """Run an immediate monitoring check."""
-    try:
-        from .monitoring_service import run_immediate_check
-        
-        result = run_immediate_check()
-        return result
-        
-    except Exception as e:
-        logger.error(f"Failed to run immediate check: {e}")
-        return {"error": str(e)}
-
-@app.get("/api/admin/monitoring/health")
-async def get_monitoring_health_status():
-    """Get detailed monitoring system health."""
-    try:
-        from .monitoring_service import get_monitoring_health
-        
-        health = get_monitoring_health()
-        return health
-        
-    except Exception as e:
-        logger.error(f"Failed to get monitoring health: {e}")
-        return {"error": str(e)}
-
-# Alert Notification Endpoints
-
-@app.get("/api/admin/alerts/critical")
-async def get_critical_alerts():
-    """Get critical alerts requiring immediate attention."""
-    try:
-        from .monitoring_service import get_notification_service
-        
-        notification_service = get_notification_service()
-        critical_alerts = notification_service.check_critical_alerts()
-        
-        return {
-            "critical_alerts": critical_alerts,
-            "count": len(critical_alerts)
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get critical alerts: {e}")
-        return {"error": str(e)}
-
-@app.post("/api/admin/alerts/digest")
-async def send_alert_digest(recipient: str = "admin"):
-    """Send alert digest (placeholder for notification integration)."""
-    try:
-        from .monitoring_service import get_notification_service
-        
-        notification_service = get_notification_service()
-        success = notification_service.send_alert_digest(recipient)
-        
-        return {
-            "success": success,
-            "message": f"Alert digest sent to {recipient}" if success else "Failed to send digest"
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to send alert digest: {e}")
-        return {"error": str(e)}
 
 # Performance and Monitoring Endpoints
 
@@ -2178,13 +1953,7 @@ async def create_sample_improvements():
     except Exception as e:
         logger.error(f"Failed to create sample improvements: {e}")
         return {"error": str(e)}
-@app.get("/recent-improvements-widget")
-async def recent_improvements_widget():
-    """Serve the recent improvements widget."""
-    widget_path = _static_dir / "recent-improvements-widget.html"
-    if widget_path.exists():
-        return FileResponse(str(widget_path))
-    return {"message": "Recent improvements widget not found"}
+
 @app.get("/api/feedback/personal-impact")
 async def get_personal_feedback_impact(session_id: str):
     """Get personalized feedback impact metrics for a user session."""
@@ -2325,124 +2094,13 @@ def get_contribution_level(feedback_count: int) -> str:
         return "Visitor"
 
 
-@app.get("/personal-feedback-widget")
-async def personal_feedback_widget():
-    """Serve the personal feedback impact widget."""
-    widget_path = _static_dir / "personal-feedback-widget.html"
-    if widget_path.exists():
-        return FileResponse(str(widget_path))
-    return {"message": "Personal feedback widget not found"}
-# Performance Monitoring Endpoints
 
-@app.get("/api/performance/metrics")
-async def get_performance_metrics():
-    """Get comprehensive system performance metrics."""
-    try:
-        from .performance_monitor import get_performance_monitor
-        
-        monitor = get_performance_monitor()
-        metrics = monitor.get_system_metrics()
-        
-        return {
-            "system_resources": {
-                "cpu_percent": metrics.cpu_percent,
-                "memory_percent": metrics.memory_percent,
-                "memory_available_mb": metrics.memory_available_mb
-            },
-            "cache_performance": {
-                "response_cache": metrics.response_cache_stats,
-                "embedding_cache": metrics.embedding_cache_stats,
-                "query_cache": metrics.query_cache_stats
-            },
-            "database": metrics.database_pool_stats,
-            "response_times": {
-                "avg_response_time_ms": metrics.avg_response_time_ms,
-                "p95_response_time_ms": metrics.p95_response_time_ms,
-                "cache_hit_rate": metrics.cache_hit_rate
-            },
-            "recommendations": metrics.recommendations
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get performance metrics: {e}")
-        return {"error": str(e)}
 
-@app.post("/api/performance/optimize")
-async def optimize_for_speed():
-    """Apply automatic performance optimizations."""
-    try:
-        from .performance_monitor import get_performance_monitor
-        
-        monitor = get_performance_monitor()
-        result = monitor.optimize_for_speed()
-        
-        return {
-            "success": True,
-            "optimizations": result
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to optimize performance: {e}")
-        return {"error": str(e)}
-
-@app.get("/api/performance/cache-stats")
-async def get_all_cache_stats():
-    """Get statistics for all caches."""
-    try:
-        from .response_cache import get_response_cache
-        from .embedding_cache import get_embedding_cache
-        from .query_result_cache import get_query_result_cache
-        
-        response_cache = get_response_cache()
-        embedding_cache = get_embedding_cache()
-        query_cache = get_query_result_cache()
-        
-        return {
-            "response_cache": response_cache.get_stats(),
-            "embedding_cache": embedding_cache.get_stats(),
-            "query_result_cache": query_cache.get_stats()
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get cache stats: {e}")
-        return {"error": str(e)}
-
-@app.post("/api/performance/clear-all-caches")
-async def clear_all_caches():
-    """Clear all system caches."""
-    try:
-        from .response_cache import get_response_cache
-        from .embedding_cache import get_embedding_cache
-        from .query_result_cache import get_query_result_cache
-        
-        response_cache = get_response_cache()
-        embedding_cache = get_embedding_cache()
-        query_cache = get_query_result_cache()
-        
-        response_cache.clear()
-        embedding_cache.clear()
-        query_cache.clear()
-        
-        return {
-            "success": True,
-            "message": "All caches cleared successfully"
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to clear caches: {e}")
-        return {"error": str(e)}
-@app.get("/performance-dashboard")
-async def performance_dashboard():
-    """Serve performance dashboard page."""
-    dashboard_path = _static_dir / "performance-dashboard.html"
-    if dashboard_path.exists():
-        return FileResponse(str(dashboard_path))
-    return {"message": "Performance dashboard not found"}
 
 # File Cleanup and Sync Endpoints
 
 @app.post("/api/admin/cleanup-orphaned")
-async def cleanup_orphaned_documents():
+async def cleanup_orphaned_endpoint():
     """Remove documents from database that no longer exist in the file system and invalidate related caches."""
     try:
         from .file_cleanup import cleanup_orphaned_documents

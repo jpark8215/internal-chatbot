@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Dashboard - Knowledge Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+            --border-medium: #cbd5e1;
+            --accent-primary: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-light: #dbeafe;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --error: #ef4444;
+            --error-light: #fee2e2;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem 2rem;
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-link {
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-link:hover {
+            background: var(--accent-light);
+            color: var(--accent-primary);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--bg-primary);
+            padding: 0.875rem 1.25rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+            min-width: fit-content;
+        }
+
+        .control-group:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .control-group i {
+            color: var(--accent-primary);
+            font-size: 1rem;
+        }
+
+        .control-group label {
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            white-space: nowrap;
+        }
+
+        .control-group select,
+        .control-group input {
+            border: none;
+            background: none;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            outline: none;
+            font-weight: 500;
+        }
+
+        .control-group select {
+            min-width: 120px;
+        }
+
+        .control-group input {
+            width: 100%;
+            min-width: 200px;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid var(--border-light);
+            transition: border-color 0.2s ease;
+        }
+
+        .control-group input:focus {
+            border-bottom-color: var(--accent-primary);
+        }
+
+        .control-group input::placeholder {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .search-control {
+            flex: 1;
+            max-width: 100%;
+            min-width: 100%;
+        }
+
+        .search-control input {
+            width: 100%;
+            min-width: 0;
+            /* Allow input to shrink */
+        }
+
+        .btn {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn i {
+            color: rgb(0, 0, 0);
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn.secondary {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
+        }
+
+        .btn.secondary:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .feedback-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .feedback-item {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            transition: all 0.2s ease;
+        }
+
+        .feedback-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .feedback-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .feedback-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .feedback-rating {
+            display: flex;
+            gap: 0.125rem;
+            align-items: center;
+        }
+
+        .star {
+            color: #fbbf24;
+            font-size: 1rem;
+        }
+
+        .star.empty {
+            color: var(--border-medium);
+        }
+
+        .rating-text {
+            margin-left: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .feedback-flags {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .flag {
+            padding: 0.25rem 0.5rem;
+            border-radius: var(--radius-md);
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .flag.accurate {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .flag.inaccurate {
+            background: var(--error-light);
+            color: var(--error);
+        }
+
+        .flag.helpful {
+            background: var(--accent-light);
+            color: var(--accent-primary);
+        }
+
+        .flag.unhelpful {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .feedback-date {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .feedback-content {
+            margin-bottom: 1rem;
+        }
+
+        .feedback-section {
+            margin-bottom: 1rem;
+        }
+
+        .feedback-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .section-content {
+            background: var(--bg-secondary);
+            padding: 0.75rem;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            line-height: 1.5;
+            border-left: 3px solid var(--accent-primary);
+        }
+
+        .section-content.query {
+            border-left-color: var(--accent-primary);
+        }
+
+        .section-content.response {
+            border-left-color: var(--success);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .section-content.comment {
+            border-left-color: var(--warning);
+            font-style: italic;
+        }
+
+        .session-info {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: var(--bg-tertiary);
+            padding: 0.5rem;
+            border-radius: var(--radius-md);
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+
+        .loading i {
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 3rem;
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-light);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state p {
+            font-size: 0.875rem;
+        }
+
+        .error-message {
+            background: var(--error-light);
+            color: var(--error);
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--error);
+            margin: 1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .pagination-info {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .expand-btn {
+            background: none;
+            border: none;
+            color: var(--accent-primary);
+            cursor: pointer;
+            font-size: 0.75rem;
+            text-decoration: underline;
+            margin-top: 0.5rem;
+        }
+
+        .expand-btn:hover {
+            color: var(--accent-hover);
+        }
+
+        .response-preview {
+            max-height: 100px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .response-full {
+            max-height: none;
+        }
+
+        .response-fade {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(transparent, var(--bg-secondary));
+            pointer-events: none;
+        }
+
+
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            transition: all 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .stat-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .stat-icon.primary {
+            background: var(--accent-light);
+            color: var(--accent-primary);
+        }
+
+        .stat-icon.success {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .stat-icon.warning {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .stat-icon.error {
+            background: var(--error-light);
+            color: var(--error);
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+        }
+
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem 0.5rem;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+                padding: 1rem;
+            }
+
+            .nav-links {
+                justify-content: center;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+
+            .control-group {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .control-group input {
+                width: 100%;
+            }
+
+            .search-control {
+                max-width: none;
+            }
+
+            .feedback-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .feedback-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+
+
+            .stat-value {
+                font-size: 1.875rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-left">
+                <div>
+                    <h1 class="header-title">
+                        <i class="fas fa-comments"></i>
+                        Feedback Dashboard
+                    </h1>
+                    <p class="header-subtitle">View all user feedback entries with detailed information</p>
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="/admin" class="nav-link">
+                    <i class="fas fa-arrow-left"></i> Back to Admin
+                </a>
+                <a href="/" class="nav-link">
+                    <i class="fas fa-home"></i> Home
+                </a>
+            </div>
+        </header>
+
+        <!-- Statistics Section -->
+        <div class="controls">
+            <div class="control-group">
+                <i class="fas fa-calendar-alt"></i>
+                <label for="timeRange">Time Range:</label>
+                <select id="timeRange">
+                    <option value="7">Last 7 days</option>
+                    <option value="30" selected>Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="365">Last year</option>
+                </select>
+            </div>
+            <button class="btn secondary" onclick="exportFeedback()">
+                <i class="fas fa-download"></i>
+                Export
+            </button>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats cards will be populated here -->
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3 class="chart-title">
+                    <i class="fas fa-chart-area"></i>
+                    Feedback Trends
+                </h3>
+                <div class="chart-container">
+                    <canvas id="trendsChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h3 class="chart-title">
+                    <i class="fas fa-star"></i>
+                    Rating Distribution
+                </h3>
+                <div class="chart-container">
+                    <canvas id="ratingChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Feedback Section -->
+    </div>
+
+    <div id="feedbackContainer">
+        <div class="loading">
+            <i class="fas fa-spinner"></i>
+            Loading feedback entries...
+        </div>
+    </div>
+
+    <div class="pagination" id="pagination" style="display: none;">
+        <button class="btn secondary" id="prevBtn" onclick="previousPage()">
+            <i class="fas fa-chevron-left"></i>
+            Previous
+        </button>
+        <div class="pagination-info" id="paginationInfo"></div>
+        <button class="btn secondary" id="nextBtn" onclick="nextPage()">
+            Next
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let totalEntries = 0;
+        let allFeedback = [];
+        let filteredFeedback = [];
+        let trendsChart, ratingChart;
+
+        async function loadFeedback() {
+            const container = document.getElementById('feedbackContainer');
+            const limit = 50; // Default to 50 entries
+
+            container.innerHTML = `
+                <div class="loading">
+                    <i class="fas fa-spinner"></i>
+                    Loading ${limit} feedback entries...
+                </div>
+            `;
+
+            try {
+                console.log(`Requesting ${limit} feedback entries from /api/feedback/recent?limit=${limit}`);
+                const response = await fetch(`/api/feedback/recent?limit=${limit}`);
+
+                console.log(`Response status: ${response.status} ${response.statusText}`);
+
+                if (!response.ok) {
+                    // Try to get more details from the response
+                    let errorDetails = '';
+                    try {
+                        const errorData = await response.json();
+                        errorDetails = errorData.detail || errorData.message || JSON.stringify(errorData);
+                    } catch (e) {
+                        errorDetails = await response.text();
+                    }
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}. Details: ${errorDetails}`);
+                }
+
+                const data = await response.json();
+                console.log('Response data:', data);
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                allFeedback = data.feedback || [];
+                totalEntries = allFeedback.length;
+
+                console.log(`Successfully loaded ${totalEntries} feedback entries`);
+
+                applyFilters();
+                displayFeedback();
+
+            } catch (error) {
+                console.error('Failed to load feedback:', error);
+                container.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Failed to load feedback: ${error.message}
+                        <br><small>Requested ${limit} entries. Check browser console for more details.</small>
+                        <br><small>Try restarting the application if the API limit was recently changed.</small>
+                    </div>
+                `;
+            }
+        }
+
+        function applyFilters() {
+            // No filtering - show all feedback
+            filteredFeedback = allFeedback;
+            currentPage = 1;
+        }
+
+        function displayFeedback() {
+            const container = document.getElementById('feedbackContainer');
+
+            if (filteredFeedback.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-comments"></i>
+                        <h3>No feedback entries found</h3>
+                        <p>No feedback matches your current filters, or no feedback has been submitted yet.</p>
+                    </div>
+                `;
+                document.getElementById('pagination').style.display = 'none';
+                return;
+            }
+
+            const feedbackHtml = filteredFeedback.map(feedback => {
+                const date = feedback.created_at ? new Date(feedback.created_at).toLocaleString() : 'Unknown date';
+                const rating = feedback.rating || 0;
+                const responsePreview = feedback.response_text ?
+                    (feedback.response_text.length > 300 ?
+                        feedback.response_text.substring(0, 300) + '...' :
+                        feedback.response_text) : 'No response text';
+
+                return `
+                    <div class="feedback-item">
+                        <div class="feedback-header">
+                            <div class="feedback-meta">
+                                <div class="feedback-rating">
+                                    ${Array.from({ length: 5 }, (_, i) =>
+                    `<span class="star ${i < rating ? '' : 'empty'}">★</span>`
+                ).join('')}
+                                    <span class="rating-text">${rating}/5</span>
+                                </div>
+                                <div class="feedback-flags">
+                                    ${feedback.is_accurate === true ? '<span class="flag accurate">Accurate</span>' : ''}
+                                    ${feedback.is_accurate === false ? '<span class="flag inaccurate">Inaccurate</span>' : ''}
+                                    ${feedback.is_helpful === true ? '<span class="flag helpful">Helpful</span>' : ''}
+                                    ${feedback.is_helpful === false ? '<span class="flag unhelpful">Unhelpful</span>' : ''}
+                                </div>
+                            </div>
+                            <div class="feedback-date">
+                                <i class="fas fa-clock"></i>
+                                ${date}
+                            </div>
+                        </div>
+                        
+                        <div class="feedback-content">
+                            ${feedback.query_text ? `
+                                <div class="feedback-section">
+                                    <div class="section-label">
+                                        <i class="fas fa-question-circle"></i>
+                                        User Query
+                                    </div>
+                                    <div class="section-content query">
+                                        ${feedback.query_text}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${feedback.response_text ? `
+                                <div class="feedback-section">
+                                    <div class="section-label">
+                                        <i class="fas fa-reply"></i>
+                                        System Response
+                                    </div>
+                                    <div class="section-content response" id="response-${feedback.id}">
+                                        <div class="response-preview" id="preview-${feedback.id}">
+                                            ${responsePreview}
+                                            ${feedback.response_text.length > 300 ? '<div class="response-fade"></div>' : ''}
+                                        </div>
+                                        ${feedback.response_text.length > 300 ? `
+                                            <button class="expand-btn" onclick="toggleResponse(${feedback.id})">
+                                                Show full response
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${feedback.comments ? `
+                                <div class="feedback-section">
+                                    <div class="section-label">
+                                        <i class="fas fa-comment"></i>
+                                        User Comments
+                                    </div>
+                                    <div class="section-content comment">
+                                        "${feedback.comments}"
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        ${feedback.user_session ? `
+                            <div class="session-info">
+                                <i class="fas fa-user"></i>
+                                Session: ${feedback.user_session}
+                                <span style="margin-left: auto;">ID: ${feedback.id}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `<div class="feedback-grid">${feedbackHtml}</div>`;
+
+            // Update pagination info
+            updatePaginationInfo();
+        }
+
+        function toggleResponse(feedbackId) {
+            const responseContainer = document.getElementById(`response-${feedbackId}`);
+            const preview = document.getElementById(`preview-${feedbackId}`);
+            const button = responseContainer.querySelector('.expand-btn');
+
+            const feedback = allFeedback.find(f => f.id === feedbackId);
+            if (!feedback) return;
+
+            if (preview.classList.contains('response-preview')) {
+                // Expand
+                preview.classList.remove('response-preview');
+                preview.classList.add('response-full');
+                preview.innerHTML = feedback.response_text;
+                button.textContent = 'Show less';
+            } else {
+                // Collapse
+                preview.classList.add('response-preview');
+                preview.classList.remove('response-full');
+                const responsePreview = feedback.response_text.length > 300 ?
+                    feedback.response_text.substring(0, 300) + '...' :
+                    feedback.response_text;
+                preview.innerHTML = responsePreview + (feedback.response_text.length > 300 ? '<div class="response-fade"></div>' : '');
+                button.textContent = 'Show full response';
+            }
+        }
+
+        function updatePaginationInfo() {
+            const info = document.getElementById('paginationInfo');
+            info.textContent = `Showing ${filteredFeedback.length} of ${totalEntries} entries`;
+
+            // For now, we're showing all results on one page
+            // This could be enhanced with actual pagination if needed
+            document.getElementById('pagination').style.display = 'flex';
+            document.getElementById('prevBtn').style.display = 'none';
+            document.getElementById('nextBtn').style.display = 'none';
+        }
+
+        function exportFeedback() {
+            if (allFeedback.length === 0) {
+                alert('No feedback data to export');
+                return;
+            }
+
+            // Create CSV content with proper headers
+            const headers = [
+                'ID',
+                'Date',
+                'Rating',
+                'Accurate',
+                'Helpful',
+                'User Query',
+                'System Response',
+                'User Comments',
+                'Session ID'
+            ];
+
+            const csvRows = [
+                headers.join(','),
+                ...allFeedback.map(feedback => {
+                    const row = [
+                        feedback.id || '',
+                        feedback.created_at ? new Date(feedback.created_at).toLocaleString() : '',
+                        feedback.rating || '',
+                        feedback.is_accurate !== null ? (feedback.is_accurate ? 'Yes' : 'No') : 'Not specified',
+                        feedback.is_helpful !== null ? (feedback.is_helpful ? 'Yes' : 'No') : 'Not specified',
+                        `"${(feedback.query_text || 'No query').replace(/"/g, '""')}"`,
+                        `"${(feedback.response_text || 'No response').replace(/"/g, '""')}"`,
+                        `"${(feedback.comments || 'No comments').replace(/"/g, '""')}"`,
+                        feedback.user_session || 'Anonymous'
+                    ];
+                    return row.join(',');
+                })
+            ];
+
+            const csvContent = csvRows.join('\n');
+
+            // Download CSV file
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `feedback-export-${new Date().toISOString().split('T')[0]}.csv`;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            console.log(`Exported ${allFeedback.length} feedback entries to CSV`);
+        }
+
+
+
+        // Statistics functions
+        async function loadStats() {
+            const timeRange = document.getElementById('timeRange').value;
+
+            try {
+                // Load statistics
+                const statsResponse = await fetch(`/api/feedback/stats?days=${timeRange}`);
+                const statsData = await statsResponse.json();
+
+                if (statsData.error) {
+                    throw new Error(statsData.error);
+                }
+
+                displayStats(statsData.stats);
+
+                // Try to load real trend data, fallback to basic chart if not available
+                try {
+                    const trendsResponse = await fetch(`/api/feedback/trends?days=${timeRange}`);
+                    const trendsData = await trendsResponse.json();
+
+                    if (!trendsData.error) {
+                        updateCharts(statsData.stats, trendsData.trend_data);
+                    } else {
+                        updateCharts(statsData.stats);
+                    }
+                } catch (trendError) {
+                    // Fallback to basic chart if trends endpoint doesn't exist yet
+                    console.log('Trends endpoint not available, using basic chart');
+                    updateCharts(statsData.stats);
+                }
+
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Failed to load statistics: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function displayStats(stats) {
+            const statsGrid = document.getElementById('statsGrid');
+
+            const cards = [
+                {
+                    title: 'Total Feedback',
+                    value: stats.total_feedback || 0,
+                    icon: 'fas fa-comments',
+                    iconClass: 'primary'
+                },
+                {
+                    title: 'Average Rating',
+                    value: (stats.avg_rating || 0).toFixed(1),
+                    icon: 'fas fa-star',
+                    iconClass: 'warning'
+                },
+                {
+                    title: 'Accuracy Rate',
+                    value: `${(stats.accuracy_rate || 0).toFixed(1)}%`,
+                    icon: 'fas fa-check-circle',
+                    iconClass: 'success'
+                },
+                {
+                    title: 'Helpfulness Rate',
+                    value: `${(stats.helpfulness_rate || 0).toFixed(1)}%`,
+                    icon: 'fas fa-thumbs-up',
+                    iconClass: 'success'
+                }
+            ];
+
+            statsGrid.innerHTML = cards.map(card => `
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-title">${card.title}</div>
+                        <div class="stat-icon ${card.iconClass}">
+                            <i class="${card.icon}"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value">${card.value}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateCharts(stats, trendData = null) {
+            // Trends Chart
+            const trendsCtx = document.getElementById('trendsChart').getContext('2d');
+
+            if (trendsChart) {
+                trendsChart.destroy();
+            }
+
+            // Use real trend data if available, otherwise show empty chart
+            const chartData = trendData || { labels: ['No data'], data: [0] };
+
+            trendsChart = new Chart(trendsCtx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'Feedback Count',
+                        data: chartData.data,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#f1f5f9'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Rating Distribution Chart
+            const ratingCtx = document.getElementById('ratingChart').getContext('2d');
+
+            if (ratingChart) {
+                ratingChart.destroy();
+            }
+
+            // Use real rating distribution data
+            const ratingDist = stats.rating_distribution || {};
+
+            ratingChart = new Chart(ratingCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['5 Stars', '4 Stars', '3 Stars', '2 Stars', '1 Star'],
+                    datasets: [{
+                        data: [
+                            ratingDist['5'] || 0,
+                            ratingDist['4'] || 0,
+                            ratingDist['3'] || 0,
+                            ratingDist['2'] || 0,
+                            ratingDist['1'] || 0
+                        ],
+                        backgroundColor: [
+                            '#10b981',
+                            '#3b82f6',
+                            '#f59e0b',
+                            '#ef4444',
+                            '#6b7280'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Event listeners (removed filtering event listeners)
+        document.getElementById('timeRange').addEventListener('change', loadStats);
+
+        // Initial load
+        loadFeedback();
+        loadStats();
+    </script>
+</body>
+
+</html>

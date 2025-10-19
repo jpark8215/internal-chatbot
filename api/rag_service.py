@@ -210,18 +210,8 @@ class RAGService:
         # Default to semantic search for general queries
         return SearchStrategy.SEMANTIC
         
-        # Check feedback history for similar queries (only if not in fast mode)
-        try:
-            from .user_feedback import get_accuracy_improver
-            improver = get_accuracy_improver()
-            
-            # Get feedback for similar queries to inform strategy choice
-            feedback_strategy = improver.get_optimal_strategy_from_feedback(query)
-            if feedback_strategy:
-                logger.info(f"Using feedback-informed strategy '{feedback_strategy}' for query: {query[:50]}...")
-                return SearchStrategy(feedback_strategy)
-        except Exception as e:
-            logger.debug(f"Could not get feedback-informed strategy: {e}")
+        # Feedback-based strategy selection disabled (module not available)
+        # This would require implementing a proper feedback system
         
         # HCBS-specific queries should prioritize HCBS manual
         hcbs_keywords = ['hcbs', 'waiver', 'home and community', 'behavioral health hcbs', 'bh hcbs']
@@ -366,53 +356,21 @@ class RAGService:
     
     def _generate_quality_indicators(self, query: str, sources: List[Dict[str, Any]], 
                                    strategy_used: SearchStrategy) -> Dict[str, Any]:
-        """Generate quality indicators based on historical feedback for similar queries."""
-        try:
-            from .user_feedback import get_feedback_dao, get_accuracy_improver
-            feedback_dao = get_feedback_dao()
-            improver = get_accuracy_improver()
-            
-            # Get historical performance for similar queries
-            historical_performance = feedback_dao.get_query_performance_indicators(query)
-            
-            # Calculate confidence score based on source quality and historical feedback
-            source_confidence = self._calculate_source_confidence(sources, query)
-            
-            # Get feedback-informed response quality score
-            feedback_quality_score = improver.calculate_response_quality_score(
-                query, sources, strategy_used.value
-            )
-            
-            # Get expected accuracy based on query type and sources
-            expected_accuracy = self._estimate_response_accuracy(query, sources)
-            
-            # Combine feedback-based and rule-based accuracy estimates
-            combined_accuracy = (feedback_quality_score * 0.6) + (expected_accuracy * 0.4)
-            
-            return {
-                "confidence_score": source_confidence,
-                "expected_accuracy": combined_accuracy,
-                "feedback_quality_score": feedback_quality_score,
-                "historical_performance": historical_performance,
-                "source_quality_score": self._calculate_overall_source_quality(sources),
-                "query_complexity": self._assess_query_complexity(query),
-                "feedback_available": historical_performance.get("feedback_count", 0) > 0,
-                "strategy_used": strategy_used.value,
-                "feedback_informed": True
-            }
-        except Exception as e:
-            logger.debug(f"Could not generate quality indicators: {e}")
-            return {
-                "confidence_score": 0.5,
-                "expected_accuracy": 0.7,
-                "feedback_quality_score": 0.7,
-                "historical_performance": {},
-                "source_quality_score": 0.6,
-                "query_complexity": "medium",
-                "feedback_available": False,
-                "strategy_used": strategy_used.value if strategy_used else "unknown",
-                "feedback_informed": False
-            }
+        """Generate quality indicators based on source quality and query characteristics."""
+        # Calculate confidence score based on source quality
+        source_confidence = self._calculate_source_confidence(sources, query)
+        
+        # Get expected accuracy based on query type and sources
+        expected_accuracy = self._estimate_response_accuracy(query, sources)
+        
+        return {
+            "confidence_score": source_confidence,
+            "expected_accuracy": expected_accuracy,
+            "source_quality_score": self._calculate_overall_source_quality(sources),
+            "query_complexity": self._assess_query_complexity(query),
+            "strategy_used": strategy_used.value,
+            "feedback_informed": False
+        }
     
     def _calculate_source_confidence(self, sources: List[Dict[str, Any]], query: str) -> float:
         """Calculate confidence score based on source quality and relevance."""
@@ -484,31 +442,14 @@ class RAGService:
         
         query_lower = query.lower()
         
-        # First apply feedback-driven dynamic boosting
-        try:
-            from .user_feedback import get_accuracy_improver
-            improver = get_accuracy_improver()
-            documents = improver.get_dynamic_source_boosting(query, documents)
-            logger.debug(f"Applied feedback-driven source boosting for query: {query[:50]}...")
-        except Exception as e:
-            logger.debug(f"Could not apply feedback-driven boosting: {e}")
-        
-        # Then apply rule-based boosting as fallback/supplement
+        # Apply rule-based source boosting
         boosted_docs = []
-        
-        # Get feedback-based source preferences (legacy method as backup)
-        feedback_boosts = self._get_feedback_source_boosts(query)
         
         for doc_id, content, score, source_file in documents:
             boost_factor = 1.0
             
             if source_file:
                 filename = source_file.lower()
-                
-                # Apply legacy feedback-based boosting if not already applied
-                if source_file in feedback_boosts:
-                    boost_factor *= feedback_boosts[source_file]
-                    logger.debug(f"Applied legacy feedback boost {feedback_boosts[source_file]} to {source_file}")
                 
                 # HCBS queries should prioritize HCBS manual
                 if any(keyword in query_lower for keyword in ['hcbs', 'waiver', 'home and community', 'bh hcbs']):
@@ -540,27 +481,7 @@ class RAGService:
         
         return boosted_docs
     
-    def _get_feedback_source_boosts(self, query: str) -> Dict[str, float]:
-        """Get source boosting factors based on user feedback for similar queries."""
-        try:
-            from .user_feedback import get_feedback_dao
-            feedback_dao = get_feedback_dao()
-            
-            # Get source preferences from feedback
-            source_preferences = feedback_dao.get_source_preferences_for_query(query)
-            
-            # Convert preferences to boost factors
-            boosts = {}
-            for source, preference_score in source_preferences.items():
-                if preference_score > 0.7:  # High preference
-                    boosts[source] = 0.8  # Boost by making score lower
-                elif preference_score < 0.3:  # Low preference
-                    boosts[source] = 1.2  # Penalize by making score higher
-            
-            return boosts
-        except Exception as e:
-            logger.debug(f"Could not get feedback source boosts: {e}")
-            return {}
+
         
         context_text = "\n\n".join(ctx_chunks)
         

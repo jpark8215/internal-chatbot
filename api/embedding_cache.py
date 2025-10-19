@@ -29,8 +29,9 @@ class EmbeddingCache:
     
     def _generate_key(self, text: str, model: str) -> str:
         """Generate cache key from text and model."""
+        # Use shorter hash for memory efficiency
         content = f"{text}:{model}"
-        return hashlib.sha256(content.encode()).hexdigest()[:16]
+        return hashlib.md5(content.encode()).hexdigest()[:12]
     
     def get(self, text: str, model: str) -> Optional[List[float]]:
         """Get cached embedding if available and not expired."""
