@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     auto_ingest_path: Optional[str] = None
     auto_ingest_watch_mode: bool = False
     auto_ingest_watch_interval: int = 600
+    auto_ingest_max_retries: int = 5
+    auto_ingest_retry_initial_delay: float = 2.0
+    auto_ingest_retry_max_delay: float = 30.0
+    auto_ingest_file_ready_timeout: float = 60.0
+    auto_ingest_file_ready_poll_interval: float = 1.0
+    auto_ingest_file_ready_stability_checks: int = 2
+    auto_ingest_run_periodic_checker: bool = True
     
     # Scheduled cleanup configuration
     enable_scheduled_cleanup: bool = True
@@ -63,7 +70,7 @@ class Settings(BaseSettings):
     enable_embedding_cache: bool = True
     embedding_cache_size: int = 2000  # Increased cache size
     enable_query_result_cache: bool = True
-    query_result_cache_ttl: int = 300  # 5 minutes
+    query_result_cache_ttl: int = 600  
 
     # Monitoring (removed for simplicity)
 

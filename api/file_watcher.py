@@ -17,13 +17,58 @@ from .logging_config import get_logger
 
 logger = get_logger(__name__)
 
+SUPPORTED_EXTENSIONS = {'.txt', '.md', '.markdown', '.pdf', '.docx'}
+
+
+def _wait_for_file_ready(file_path: Path, settings) -> bool:
+    """Ensure the file is stable before ingestion."""
+    if not file_path.exists():
+        return False
+
+    timeout = getattr(settings, "auto_ingest_file_ready_timeout", 30.0)
+    poll_interval = max(0.1, getattr(settings, "auto_ingest_file_ready_poll_interval", 1.0))
+    stability_checks = max(1, getattr(settings, "auto_ingest_file_ready_stability_checks", 2))
+
+    deadline = time.time() + timeout
+    last_fingerprint = None
+    stable_count = 0
+
+    while time.time() < deadline:
+        try:
+            stat = file_path.stat()
+        except FileNotFoundError:
+            return False
+
+        fingerprint = (stat.st_size, stat.st_mtime)
+        if fingerprint == last_fingerprint:
+            stable_count += 1
+        else:
+            stable_count = 1
+            last_fingerprint = fingerprint
+
+        if stable_count >= stability_checks:
+            return True
+
+        time.sleep(poll_interval)
+
+    logger.warning(f"[file-watcher] Timed out waiting for file to stabilize: {file_path.name}")
+    return False
+
+
+def _is_file_already_ingested(dao, abs_path: str) -> bool:
+    """Check if a file already has documents stored."""
+    with dao.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM documents WHERE source_file = %s LIMIT 1", (abs_path,))
+            return cur.fetchone() is not None
+
 
 class DocumentFileHandler(FileSystemEventHandler):
     """Handle file system events for document ingestion."""
 
     def __init__(self):
         self.settings = get_settings()
-        self.supported_extensions = {'.txt', '.md', '.pdf', '.docx'}
+        self.supported_extensions = SUPPORTED_EXTENSIONS
         self.processing_files: Set[str] = set()
         self.processing_lock = threading.Lock()
 
@@ -91,7 +136,7 @@ class DocumentFileHandler(FileSystemEventHandler):
         except Exception as e:
             logger.error(f"[file-watcher] Failed to handle deletion of {file_path}: {e}")
 
-    def _process_file(self, file_path: Path):
+    def _process_file(self, file_path: Path, attempt: int = 0):
         """Process a new file for ingestion."""
         # Check if it's a supported file type
         if file_path.suffix.lower() not in self.supported_extensions:
@@ -100,17 +145,20 @@ class DocumentFileHandler(FileSystemEventHandler):
         # Avoid processing the same file multiple times
         file_str = str(file_path)
         with self.processing_lock:
-            if file_str in self.processing_files:
-                return
+            if attempt == 0:
+                if file_str in self.processing_files:
+                    return
             self.processing_files.add(file_str)
 
-        try:
-            # Wait a moment for file to be fully written
-            time.sleep(1)  # Reduced wait time
+        settings = self.settings
+        max_retries = max(0, getattr(settings, "auto_ingest_max_retries", 0))
+        base_delay = max(0.1, getattr(settings, "auto_ingest_retry_initial_delay", 1.0))
+        max_delay = max(base_delay, getattr(settings, "auto_ingest_retry_max_delay", base_delay))
 
-            if not file_path.exists():
-                logger.warning(f"File disappeared before processing: {file_path}")
-                return
+        retry_scheduled = False
+        try:
+            if not _wait_for_file_ready(file_path, self.settings):
+                raise RuntimeError(f"File not ready for ingestion: {file_path}")
 
             logger.info(f"[file-watcher] New file detected: {file_path.name}")
 
@@ -119,23 +167,40 @@ class DocumentFileHandler(FileSystemEventHandler):
             abs_path = str(file_path.absolute())
             
             # Simple existence check instead of loading all sources
-            with dao.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute("SELECT COUNT(*) FROM documents WHERE source_file = %s", (abs_path,))
-                    if cur.fetchone()[0] > 0:
-                        logger.info(f"[file-watcher] File already ingested: {file_path.name}")
-                        return
+            if _is_file_already_ingested(dao, abs_path):
+                logger.info(f"[file-watcher] File already ingested: {file_path.name}")
+                return
 
             # Ingest the new file
             chunks_ingested = ingest_path(file_path)
             logger.info(f"[file-watcher] Successfully ingested {chunks_ingested} chunks from {file_path.name}")
 
         except Exception as e:
-            logger.error(f"[file-watcher] Failed to ingest {file_path}: {e}")
+            if attempt < max_retries:
+                delay = min(max_delay, base_delay * (2 ** attempt))
+                logger.warning(
+                    f"[file-watcher] Ingestion attempt {attempt + 1} failed for {file_path.name}: {e}. "
+                    f"Retrying in {delay:.1f}s"
+                )
+                self._schedule_retry(file_path, attempt + 1, delay)
+                retry_scheduled = True
+            else:
+                logger.error(f"[file-watcher] Failed to ingest {file_path} after {attempt + 1} attempts: {e}")
         finally:
             # Remove from processing set
-            with self.processing_lock:
-                self.processing_files.discard(file_str)
+            if not retry_scheduled:
+                with self.processing_lock:
+                    self.processing_files.discard(file_str)
+
+    def _schedule_retry(self, file_path: Path, attempt: int, delay: float) -> None:
+        """Schedule a retry for file ingestion."""
+
+        def _retry():
+            self._process_file(file_path, attempt=attempt)
+
+        timer = threading.Timer(delay, _retry)
+        timer.daemon = True
+        timer.start()
 
 
 class FileWatcher:
@@ -201,9 +266,14 @@ class PeriodicFileChecker:
         self.running = False
         self.thread: Optional[threading.Thread] = None
         self.known_files: Set[str] = set()
+        self.supported_extensions = SUPPORTED_EXTENSIONS
 
     def start(self):
         """Start periodic file checking."""
+        if self.running:
+            logger.debug("[file-checker] Periodic checker already running")
+            return True
+
         if not self.settings.auto_ingest_path:
             logger.warning("[file-checker] No auto-ingest path configured")
             return False
@@ -241,8 +311,7 @@ class PeriodicFileChecker:
         if not watch_path.exists():
             return
 
-        supported_extensions = {'.txt', '.md', '.pdf', '.docx'}
-        for ext in supported_extensions:
+        for ext in self.supported_extensions:
             for file_path in watch_path.glob(f"**/*{ext}"):
                 self.known_files.add(str(file_path.absolute()))
 
@@ -252,37 +321,61 @@ class PeriodicFileChecker:
         if not watch_path.exists():
             return
 
-        supported_extensions = {'.txt', '.md', '.pdf', '.docx'}
         current_files = set()
 
         # Scan current files
-        for ext in supported_extensions:
+        for ext in self.supported_extensions:
             for file_path in watch_path.glob(f"**/*{ext}"):
                 current_files.add(str(file_path.absolute()))
 
-        # Find new files
-        new_files = current_files - self.known_files
+        dao = get_dao()
+        existing_sources = {
+            source for source, _ in dao.count_documents_by_source() if source
+        }
 
-        for file_str in new_files:
-            file_path = Path(file_str)
+        missing_files = [Path(f) for f in current_files if f not in existing_sources]
+
+        if missing_files:
+            logger.info(
+                "[file-checker] Found %d filesystem files missing from database",
+                len(missing_files)
+            )
+
+        for file_path in missing_files:
+            file_str = str(file_path)
             try:
-                logger.info(f"[file-checker] New file detected: {file_path.name}")
+                if not _wait_for_file_ready(file_path, self.settings):
+                    logger.warning(
+                        "[file-checker] File not ready for ingestion, will retry later: %s",
+                        file_path.name
+                    )
+                    continue
 
-                # Check if already ingested
-                dao = get_dao()
-                docs_by_source = dao.count_documents_by_source()
-                existing_sources = {source for source, count in docs_by_source}
+                abs_path = str(file_path.absolute())
+                if _is_file_already_ingested(dao, abs_path):
+                    logger.debug(
+                        "[file-checker] File already ingested by the time of check: %s",
+                        file_path.name
+                    )
+                    continue
 
-                if file_path.name not in existing_sources and file_str not in existing_sources:
-                    chunks_ingested = ingest_path(file_path)
-                    logger.info(f"[file-checker] Successfully ingested {chunks_ingested} chunks from {file_path.name}")
+                chunks_ingested = ingest_path(file_path)
+                if chunks_ingested > 0:
+                    logger.info(
+                        "[file-checker] Successfully ingested %d chunks from %s",
+                        chunks_ingested,
+                        file_path.name
+                    )
                 else:
-                    logger.info(f"[file-checker] File already ingested: {file_path.name}")
+                    logger.info(
+                        "[file-checker] No new chunks created for %s (possibly empty or already ingested)",
+                        file_path.name
+                    )
 
             except Exception as e:
                 logger.error(f"[file-checker] Failed to ingest {file_path}: {e}")
 
-        # Update known files
+        # Update known files for tracking
         self.known_files = current_files
 
 
@@ -316,15 +409,28 @@ def start_file_monitoring():
     except Exception as e:
         logger.warning(f"[file-monitor] File watcher failed: {e}, falling back to periodic checking")
 
-    # If file watcher started successfully, we're done
-    if file_watcher_started:
+    # Start periodic checker if requested (even alongside real-time watcher)
+    should_run_periodic = getattr(settings, "auto_ingest_run_periodic_checker", True)
+    periodic_started = False
+
+    if should_run_periodic:
+        if not _periodic_checker:
+            _periodic_checker = PeriodicFileChecker()
+        if _periodic_checker.start():
+            logger.info("[file-monitor] Periodic file checker running")
+            periodic_started = True
+        else:
+            logger.warning("[file-monitor] Failed to start periodic checker")
+
+    if file_watcher_started or periodic_started:
         return True
 
-    # Fallback to periodic checker
-    _periodic_checker = PeriodicFileChecker()
-    if _periodic_checker.start():
-        logger.info("[file-monitor] Using periodic file checker")
-        return True
+    # Fallback to periodic checker only when watchdog failed and it's not already running
+    if not periodic_started and should_run_periodic:
+        _periodic_checker = PeriodicFileChecker()
+        if _periodic_checker.start():
+            logger.info("[file-monitor] Using periodic file checker")
+            return True
 
     logger.error("[file-monitor] Failed to start any file monitoring")
     return False

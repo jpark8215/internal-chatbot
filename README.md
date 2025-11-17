@@ -215,7 +215,7 @@ ENABLE_FAST_MODE=true                       # Enable performance optimizations
 # Caching
 CACHE_MAX_SIZE=10000                        # Response cache size
 EMBEDDING_CACHE_SIZE=2000                   # Embedding cache size
-QUERY_RESULT_CACHE_TTL=300                  # Query cache TTL (seconds)
+QUERY_RESULT_CACHE_TTL=600                  # Query cache TTL (seconds)
 ENABLE_EMBEDDING_CACHE=true                 # Enable embedding caching
 ENABLE_QUERY_RESULT_CACHE=true              # Enable query result caching
 ```
