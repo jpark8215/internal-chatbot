@@ -382,6 +382,27 @@
                 <div id="searchResults" class="results-container" style="display: none;"></div>
             </div>
         </div>
+        
+        <!-- RAG Flow Tab -->
+        <div id="rag-flow-tab" class="tab-content">
+            <div class="debug-section">
+                <h3 class="section-title">
+                    <i class="fas fa-flow-chart"></i>
+                    RAG Flow Testing
+                </h3>
+                <div class="form-group">
+                    <label class="form-label">Test Query</label>
+                    <input type="text" id="ragQuery" class="form-input"
+                        value="What are Quality Indicators of Person-Centered Planning in Core Services?"
+                        placeholder="Enter test query">
+                </div>
+                <button class="btn btn-primary" onclick="runRagFlowDebug()">
+                    <i class="fas fa-play"></i>
+                    Test RAG Flow
+                </button>
+                <div id="ragFlowResults" class="results-container" style="display: none;"></div>
+            </div>
+        </div>
 
         <!-- File Monitoring Tab -->
         <div id="file-monitoring-tab" class="tab-content">
@@ -401,27 +422,6 @@
                     </button>
                 </div>
                 <div id="fileMonitoringResults" class="results-container" style="display: none;"></div>
-            </div>
-        </div>
-
-        <!-- RAG Flow Tab -->
-        <div id="rag-flow-tab" class="tab-content">
-            <div class="debug-section">
-                <h3 class="section-title">
-                    <i class="fas fa-flow-chart"></i>
-                    RAG Flow Testing
-                </h3>
-                <div class="form-group">
-                    <label class="form-label">Test Query</label>
-                    <input type="text" id="ragQuery" class="form-input"
-                        value="What are Quality Indicators of Person-Centered Planning in Core Services?"
-                        placeholder="Enter test query">
-                </div>
-                <button class="btn btn-primary" onclick="runRagFlowDebug()">
-                    <i class="fas fa-play"></i>
-                    Test RAG Flow
-                </button>
-                <div id="ragFlowResults" class="results-container" style="display: none;"></div>
             </div>
         </div>
 
@@ -464,24 +464,6 @@
 
             // Add active class to clicked button
             event.target.classList.add('active');
-        }
-
-        async function runSearchDebug() {
-            const query = document.getElementById('searchQuery').value;
-            const searchType = document.getElementById('searchType').value;
-            const resultsContainer = document.getElementById('searchResults');
-
-            resultsContainer.style.display = 'block';
-            resultsContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Running search test...</div>';
-
-            try {
-                const response = await fetch(`/api/debug/search?query=${encodeURIComponent(query)}&search_type=${searchType}`);
-                const data = await response.json();
-
-                resultsContainer.textContent = JSON.stringify(data, null, 2);
-            } catch (error) {
-                resultsContainer.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
-            }
         }
 
         async function runSearchDebug() {

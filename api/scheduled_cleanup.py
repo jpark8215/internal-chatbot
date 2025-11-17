@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 class ScheduledCleanupService:
     """Service that periodically cleans up orphaned documents."""
 
-    def __init__(self, cleanup_interval: int = 3600):  # Default: 1 hour
+    def __init__(self, cleanup_interval: int = 600):  
         self.cleanup_interval = cleanup_interval
         self.running = False
         self.thread: Optional[threading.Thread] = None
@@ -106,7 +106,7 @@ class ScheduledCleanupService:
 _cleanup_service: Optional[ScheduledCleanupService] = None
 
 
-def start_scheduled_cleanup(cleanup_interval: int = 3600):
+def start_scheduled_cleanup(cleanup_interval: int = 600):
     """Start the scheduled cleanup service."""
     global _cleanup_service
     

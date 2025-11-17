@@ -61,6 +61,20 @@ class VectorDAO:
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+                # Document sources table
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS document_sources (
+                      id SERIAL PRIMARY KEY,
+                      source_path TEXT UNIQUE NOT NULL,
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                    """
+                )
+                cur.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_document_sources_path ON document_sources (source_path);"
+                )
                 cur.execute(
                     f"""
                     CREATE TABLE IF NOT EXISTS documents (
@@ -70,7 +84,8 @@ class VectorDAO:
                       source_file TEXT,
                       file_type TEXT,
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      document_source_id INTEGER REFERENCES document_sources(id)
                     );
                     """
                 )
@@ -78,20 +93,53 @@ class VectorDAO:
                 cur.execute(
                     "CREATE INDEX IF NOT EXISTS idx_documents_embedding ON documents USING ivfflat (embedding vector_cosine_ops);"
                 )
-                # Create index for source file lookups
+                # Create indexes for source lookups
                 cur.execute(
                     "CREATE INDEX IF NOT EXISTS idx_documents_source_file ON documents (source_file);"
                 )
+                cur.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_documents_source_id ON documents (document_source_id);"
+                )
+
+    def _get_or_create_document_source(self, source_file: Optional[str]) -> Optional[int]:
+        """Return document source id, inserting a record if needed."""
+        if not source_file:
+            return None
+
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id FROM document_sources WHERE source_path = %s;",
+                    (source_file,)
+                )
+                row = cur.fetchone()
+                if row:
+                    return int(row[0])
+
+                cur.execute(
+                    """
+                    INSERT INTO document_sources (source_path)
+                    VALUES (%s)
+                    ON CONFLICT (source_path) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+                    RETURNING id;
+                    """,
+                    (source_file,)
+                )
+                new_id = cur.fetchone()[0]
+                conn.commit()
+                return int(new_id)
 
     def insert_document(self, content: str, embedding: List[float],
                        source_file: Optional[str] = None, file_type: Optional[str] = None) -> int:
         """Insert a document with metadata."""
+        document_source_id = self._get_or_create_document_source(source_file)
+
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    """INSERT INTO documents (content, embedding, source_file, file_type) 
-                       VALUES (%s, %s, %s, %s) RETURNING id;""",
-                    (content, embedding, source_file, file_type),
+                    """INSERT INTO documents (content, embedding, source_file, file_type, document_source_id) 
+                       VALUES (%s, %s, %s, %s, %s) RETURNING id;""",
+                    (content, embedding, source_file, file_type, document_source_id),
                 )
                 new_id = cur.fetchone()[0]
                 conn.commit()  # Explicit commit
@@ -103,10 +151,11 @@ class VectorDAO:
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 for content, embedding, source_file, file_type in documents:
+                    document_source_id = self._get_or_create_document_source(source_file)
                     cur.execute(
-                        """INSERT INTO documents (content, embedding, source_file, file_type) 
-                           VALUES (%s, %s, %s, %s) RETURNING id;""",
-                        (content, embedding, source_file, file_type),
+                        """INSERT INTO documents (content, embedding, source_file, file_type, document_source_id) 
+                           VALUES (%s, %s, %s, %s, %s) RETURNING id;""",
+                        (content, embedding, source_file, file_type, document_source_id),
                     )
                     ids.append(cur.fetchone()[0])
                 conn.commit()  # Explicit commit

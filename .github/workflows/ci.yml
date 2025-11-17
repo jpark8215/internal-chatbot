@@ -72,7 +72,7 @@ jobs:
       - name: Test basic imports
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_chatbot
-          OLLAMA_HOST: http://localhost:11434
+          OLLAMA_HOST: http://host.docker.internal:11434
           DEFAULT_MODEL: test-model
           EMBEDDING_MODEL: test-embedding
           AUTO_INGEST_ON_START: false

@@ -5,6 +5,17 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
+-- Document sources metadata
+CREATE TABLE IF NOT EXISTS document_sources (
+    id SERIAL PRIMARY KEY,
+    source_path TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Essential indexes for document_sources table
+CREATE INDEX IF NOT EXISTS idx_document_sources_path ON document_sources (source_path);
+
 -- Core documents table for vector storage
 CREATE TABLE IF NOT EXISTS documents (
     id SERIAL PRIMARY KEY,
@@ -13,12 +24,14 @@ CREATE TABLE IF NOT EXISTS documents (
     source_file TEXT,
     file_type TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    document_source_id INTEGER REFERENCES document_sources(id)
 );
 
 -- Essential indexes for documents table
 CREATE INDEX IF NOT EXISTS idx_documents_embedding ON documents USING ivfflat (embedding vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS idx_documents_source_file ON documents (source_file);
+CREATE INDEX IF NOT EXISTS idx_documents_source_id ON documents (document_source_id);
 CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents (created_at);
 CREATE INDEX IF NOT EXISTS idx_documents_file_type ON documents (file_type);
 

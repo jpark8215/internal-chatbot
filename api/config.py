@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     )
 
     # Ollama configuration
-    ollama_host: str = "http://localhost:11434"
+    ollama_host: str = "http://host.docker.internal:11434"
     default_model: str = "mistral:7b"
     embedding_model: str = "nomic-embed-text:latest"
     embedding_dim: int = 768
@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     
     # Scheduled cleanup configuration
     enable_scheduled_cleanup: bool = True
-    cleanup_interval: int = 3600  # 1 hour in seconds
+    cleanup_interval: int = 600 
 
     # Logging configuration
     log_level: str = "INFO"

@@ -51,7 +51,7 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/internal_chatbot
 # Ollama Models
 DEFAULT_MODEL=mistral:7b
 EMBEDDING_MODEL=nomic-embed-text:latest
-OLLAMA_HOST=http://localhost:11434
+OLLAMA_HOST=http://host.docker.internal:11434
 
 # Document Processing
 AUTO_INGEST_ON_START=true
@@ -197,7 +197,7 @@ py -m api.main
 # LLM Configuration
 DEFAULT_MODEL=mistral:7b                    # Primary language model
 EMBEDDING_MODEL=nomic-embed-text:latest     # Embedding model
-OLLAMA_HOST=http://localhost:11434          # Ollama service URL
+OLLAMA_HOST=http://host.docker.internal:11434          # Ollama service URL
 
 # Database
 DATABASE_URL=postgres://user:pass@host:port/db  # PostgreSQL connection
@@ -230,7 +230,7 @@ AUTO_INGEST_WATCH_INTERVAL=60               # File check interval (seconds)
 
 # Automatic cleanup
 ENABLE_SCHEDULED_CLEANUP=true               # Enable automatic orphaned cleanup
-CLEANUP_INTERVAL=3600                       # Cleanup interval (seconds)
+CLEANUP_INTERVAL=600                        # Cleanup interval (seconds)
 ```
 
 ## 🚀 Performance Benchmarks
