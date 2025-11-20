@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Set, Tuple
 from .dao import get_dao
 from .logging_config import get_logger
+from .ingest_files import SUPPORTED_EXTENSIONS
 
 logger = get_logger(__name__)
 
@@ -26,7 +27,7 @@ def cleanup_orphaned_documents(base_path: Path) -> Tuple[int, List[str], int]:
     
     # Get all actual files in the directory
     actual_files = set()
-    for ext in ['.pdf', '.docx', '.txt', '.md', '.markdown']:
+    for ext in SUPPORTED_EXTENSIONS:
         try:
             actual_files.update(str(f.absolute()) for f in base_path.rglob(f'*{ext}'))
         except Exception as e:
@@ -101,7 +102,8 @@ def sync_database_with_filesystem(base_path: Path) -> dict:
     # Step 2: Get current state
     current_db_sources = dao.count_documents_by_source()
     current_files = set()
-    for ext in ['.pdf', '.docx', '.txt', '.md', '.markdown']:
+    from .ingest_files import SUPPORTED_EXTENSIONS
+    for ext in SUPPORTED_EXTENSIONS:
         current_files.update(str(f.absolute()) for f in base_path.rglob(f'*{ext}'))
     
     # Step 3: Find files that need re-ingestion (modified)
@@ -139,7 +141,8 @@ def get_database_file_status(base_path: Path) -> dict:
     
     # Filesystem state
     fs_files = {}
-    for ext in ['.pdf', '.docx', '.txt', '.md', '.markdown']:
+    from .ingest_files import SUPPORTED_EXTENSIONS
+    for ext in SUPPORTED_EXTENSIONS:
         for file_path in base_path.rglob(f'*{ext}'):
             fs_files[str(file_path.absolute())] = {
                 'size': file_path.stat().st_size,

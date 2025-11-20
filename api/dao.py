@@ -83,12 +83,38 @@ class VectorDAO:
                       embedding vector({self.settings.embedding_dim}),
                       source_file TEXT,
                       file_type TEXT,
+                      chunk_index INTEGER,
+                      start_position INTEGER,
+                      end_position INTEGER,
+                      page_number INTEGER,
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                       document_source_id INTEGER REFERENCES document_sources(id)
                     );
                     """
                 )
+                # Add metadata columns if they don't exist (for existing databases)
+                cur.execute("""
+                    DO $$ 
+                    BEGIN
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='documents' AND column_name='chunk_index') THEN
+                            ALTER TABLE documents ADD COLUMN chunk_index INTEGER;
+                        END IF;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='documents' AND column_name='start_position') THEN
+                            ALTER TABLE documents ADD COLUMN start_position INTEGER;
+                        END IF;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='documents' AND column_name='end_position') THEN
+                            ALTER TABLE documents ADD COLUMN end_position INTEGER;
+                        END IF;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='documents' AND column_name='page_number') THEN
+                            ALTER TABLE documents ADD COLUMN page_number INTEGER;
+                        END IF;
+                    END $$;
+                """)
                 # Create index for better performance
                 cur.execute(
                     "CREATE INDEX IF NOT EXISTS idx_documents_embedding ON documents USING ivfflat (embedding vector_cosine_ops);"
@@ -130,40 +156,60 @@ class VectorDAO:
                 return int(new_id)
 
     def insert_document(self, content: str, embedding: List[float],
-                       source_file: Optional[str] = None, file_type: Optional[str] = None) -> int:
+                       source_file: Optional[str] = None, file_type: Optional[str] = None,
+                       chunk_index: Optional[int] = None, start_position: Optional[int] = None,
+                       end_position: Optional[int] = None, page_number: Optional[int] = None) -> int:
         """Insert a document with metadata."""
         document_source_id = self._get_or_create_document_source(source_file)
 
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    """INSERT INTO documents (content, embedding, source_file, file_type, document_source_id) 
-                       VALUES (%s, %s, %s, %s, %s) RETURNING id;""",
-                    (content, embedding, source_file, file_type, document_source_id),
+                    """INSERT INTO documents (content, embedding, source_file, file_type, document_source_id,
+                       chunk_index, start_position, end_position, page_number) 
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;""",
+                    (content, embedding, source_file, file_type, document_source_id,
+                     chunk_index, start_position, end_position, page_number),
                 )
                 new_id = cur.fetchone()[0]
                 conn.commit()  # Explicit commit
                 return new_id
 
-    def insert_documents_batch(self, documents: List[Tuple[str, List[float], Optional[str], Optional[str]]]) -> List[int]:
-        """Insert multiple documents in a single transaction."""
+    def insert_documents_batch(self, documents: List[Tuple[str, List[float], Optional[str], Optional[str], 
+                                                           Optional[int], Optional[int], Optional[int], Optional[int]]]) -> List[int]:
+        """
+        Insert multiple documents in a single transaction.
+        
+        Documents tuple format: (content, embedding, source_file, file_type, 
+                                 chunk_index, start_position, end_position, page_number)
+        """
         ids = []
         with self.get_connection() as conn:
             with conn.cursor() as cur:
-                for content, embedding, source_file, file_type in documents:
+                for doc_tuple in documents:
+                    if len(doc_tuple) == 4:
+                        # Backward compatibility: old format without metadata
+                        content, embedding, source_file, file_type = doc_tuple
+                        chunk_index = start_position = end_position = page_number = None
+                    else:
+                        # New format with metadata
+                        content, embedding, source_file, file_type, chunk_index, start_position, end_position, page_number = doc_tuple
+                    
                     document_source_id = self._get_or_create_document_source(source_file)
                     cur.execute(
-                        """INSERT INTO documents (content, embedding, source_file, file_type, document_source_id) 
-                           VALUES (%s, %s, %s, %s, %s) RETURNING id;""",
-                        (content, embedding, source_file, file_type, document_source_id),
+                        """INSERT INTO documents (content, embedding, source_file, file_type, document_source_id,
+                           chunk_index, start_position, end_position, page_number) 
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;""",
+                        (content, embedding, source_file, file_type, document_source_id,
+                         chunk_index, start_position, end_position, page_number),
                     )
                     ids.append(cur.fetchone()[0])
                 conn.commit()  # Explicit commit
         return ids
 
     def search(self, query_embedding: List[float], top_k: int = 5,
-               source_file_filter: Optional[str] = None) -> List[Tuple[int, str, float, Optional[str]]]:
-        """Return list of (id, content, distance, source_file) ordered by similarity (ASC)."""
+               source_file_filter: Optional[str] = None) -> List[Tuple[int, str, float, Optional[str], Optional[int], Optional[int], Optional[int], Optional[int]]]:
+        """Return list of (id, content, distance, source_file, chunk_index, start_position, end_position, page_number) ordered by similarity (ASC)."""
         with self.get_connection() as conn:
             # Set query timeout for faster failure
             with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
@@ -173,7 +219,8 @@ class VectorDAO:
                     # Optimized query with prepared statement pattern
                     cur.execute(
                         """
-                        SELECT id, content, embedding <-> %s::vector AS distance, source_file
+                        SELECT id, content, embedding <-> %s::vector AS distance, source_file,
+                               chunk_index, start_position, end_position, page_number
                         FROM documents
                         WHERE source_file = %s
                         ORDER BY distance ASC
@@ -185,7 +232,8 @@ class VectorDAO:
                     # Optimized query using distance calculation once
                     cur.execute(
                         """
-                        SELECT id, content, embedding <-> %s::vector AS distance, source_file
+                        SELECT id, content, embedding <-> %s::vector AS distance, source_file,
+                               chunk_index, start_position, end_position, page_number
                         FROM documents
                         ORDER BY distance ASC
                         LIMIT %s;
@@ -193,7 +241,8 @@ class VectorDAO:
                         (query_embedding, top_k),
                     )
                 rows = cur.fetchall()
-                return [(int(r[0]), str(r[1]), float(r[2]), r[3]) for r in rows]
+                return [(int(r[0]), str(r[1]), float(r[2]), r[3], 
+                        r[4], r[5], r[6], r[7]) for r in rows]
 
     def search_keyword(self, query_text: str, top_k: int = 5) -> List[Tuple[int, str, float, Optional[str]]]:
         """Keyword-based search for simple terms."""

@@ -21,7 +21,14 @@ from pathlib import Path as _Path
 import uuid
 from datetime import datetime, timedelta
 
-app = FastAPI(title="Internal Chatbot API")
+app = FastAPI(
+    title="Internal Chatbot API",
+    description="Internal chatbot API with RAG capabilities, document ingestion, and query history",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
+)
 settings = get_settings()
 
 # Setup logging
@@ -185,7 +192,7 @@ async def root():
 @app.get("/history")
 async def history_page():
     """Serve query history page."""
-    history_path = _static_dir / "history.html"
+    history_path = _static_dir / "history-dashboard.html"
     if history_path.exists():
         return FileResponse(str(history_path))
     return {"message": "History page not found"}
@@ -538,7 +545,8 @@ async def get_system_health():
                     path_health["readable"] = True
                     
                     # Count files
-                    for ext in ['.pdf', '.docx', '.txt', '.md', '.markdown']:
+                    from .ingest_files import SUPPORTED_EXTENSIONS
+                    for ext in SUPPORTED_EXTENSIONS:
                         path_health["file_count"] += len(list(ingest_path.rglob(f'*{ext}')))
                 except Exception as e:
                     path_health["error"] = str(e)
@@ -711,7 +719,8 @@ async def debug_file_monitoring():
                 try:
                     path_readable = True
                     # Count supported files
-                    for ext in ['.pdf', '.docx', '.txt', '.md', '.markdown']:
+                    from .ingest_files import SUPPORTED_EXTENSIONS
+                    for ext in SUPPORTED_EXTENSIONS:
                         file_count += len(list(ingest_path.rglob(f'*{ext}')))
                 except Exception:
                     path_readable = False
@@ -1046,7 +1055,7 @@ def _diagnose_file_monitoring_issues(monitoring_active, watch_mode_enabled, path
     
     if file_count == 0 and path_exists:
         issues.append("No supported files found in auto-ingest directory")
-        recommendations.append("Add .pdf, .docx, .txt, or .md files to the auto-ingest directory")
+        recommendations.append("Add supported files (.pdf, .docx, .txt, .md, .xlsx, .mp3, images, etc.) to the auto-ingest directory")
     
     if isinstance(sync_status, dict) and sync_status.get("sync_status") == "out_of_sync":
         orphaned_count = len(sync_status.get("orphaned_in_database", []))

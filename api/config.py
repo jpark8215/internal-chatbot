@@ -56,8 +56,8 @@ class Settings(BaseSettings):
     # Performance configuration
     embedding_batch_size: int = 50
     max_concurrent_requests: int = 20
-    chunk_size: int = 1000
-    chunk_overlap: int = 200
+    chunk_size: int = 400
+    chunk_overlap: int = 0
     
     # Response time optimizations
     enable_fast_mode: bool = True

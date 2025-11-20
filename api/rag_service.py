@@ -290,7 +290,14 @@ class RAGService:
         ctx_chunks = []
         sources = []
         
-        for i, (doc_id, content, score, source_file) in enumerate(boosted_documents):
+        for i, doc_tuple in enumerate(boosted_documents):
+            # Handle both old format (4 items) and new format (8 items with metadata)
+            if len(doc_tuple) == 4:
+                doc_id, content, score, source_file = doc_tuple
+                chunk_index = start_position = end_position = page_number = None
+            else:
+                doc_id, content, score, source_file, chunk_index, start_position, end_position, page_number = doc_tuple
+            
             # Truncate very long content
             if len(content) > 2000:
                 content = content[:2000] + "..."
@@ -326,13 +333,24 @@ class RAGService:
             # Ensure score is between 0 and 1
             normalized_score = max(0.0, min(1.0, normalized_score))
             
-            ctx_chunks.append(f"[Source {i+1}]\n{content}")
+            # Build source info with metadata
+            source_info = f"[Source {i+1}]"
+            if page_number:
+                source_info += f" (Page {page_number})"
+            if chunk_index is not None:
+                source_info += f" (Chunk {chunk_index + 1})"
+            
+            ctx_chunks.append(f"{source_info}\n{content}")
             sources.append({
                 "id": doc_id,
                 "source_file": display_source,
                 "score": float(normalized_score),  # Normalized 0-1 score
                 "raw_score": float(score),  # Keep original for debugging
-                "content_preview": content[:200] + "..." if len(content) > 200 else content
+                "content_preview": content[:200] + "..." if len(content) > 200 else content,
+                "page_number": page_number,
+                "chunk_index": chunk_index,
+                "start_position": start_position,
+                "end_position": end_position
             })
         
         context_text = "\n\n".join(ctx_chunks)
@@ -445,7 +463,13 @@ class RAGService:
         # Apply rule-based source boosting
         boosted_docs = []
         
-        for doc_id, content, score, source_file in documents:
+        for doc_tuple in documents:
+            # Handle both old format (4 items) and new format (8 items with metadata)
+            if len(doc_tuple) == 4:
+                doc_id, content, score, source_file = doc_tuple
+                chunk_index = start_position = end_position = page_number = None
+            else:
+                doc_id, content, score, source_file, chunk_index, start_position, end_position, page_number = doc_tuple
             boost_factor = 1.0
             
             if source_file:
@@ -474,7 +498,13 @@ class RAGService:
             
             # Apply boost to score
             boosted_score = score * boost_factor
-            boosted_docs.append((doc_id, content, boosted_score, source_file))
+            
+            # Preserve metadata if present
+            if len(doc_tuple) == 4:
+                boosted_docs.append((doc_id, content, boosted_score, source_file))
+            else:
+                boosted_docs.append((doc_id, content, boosted_score, source_file, 
+                                   chunk_index, start_position, end_position, page_number))
         
         # Re-sort by boosted scores
         boosted_docs.sort(key=lambda x: x[2])  # Sort by score (lower is better)

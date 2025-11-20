@@ -12,12 +12,10 @@ from watchdog.events import FileSystemEventHandler
 
 from .config import get_settings
 from .dao import get_dao
-from .ingest_files import ingest_path
+from .ingest_files import ingest_path, SUPPORTED_EXTENSIONS
 from .logging_config import get_logger
 
 logger = get_logger(__name__)
-
-SUPPORTED_EXTENSIONS = {'.txt', '.md', '.markdown', '.pdf', '.docx'}
 
 
 def _wait_for_file_ready(file_path: Path, settings) -> bool:

@@ -23,6 +23,10 @@ CREATE TABLE IF NOT EXISTS documents (
     embedding vector(768),
     source_file TEXT,
     file_type TEXT,
+    chunk_index INTEGER,
+    start_position INTEGER,
+    end_position INTEGER,
+    page_number INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     document_source_id INTEGER REFERENCES document_sources(id)

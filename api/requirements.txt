@@ -15,6 +15,7 @@ psycopg2-binary>=2.9.9,<3.0.0
 # Ingestion file parsers
 pypdf>=4.2.0,<5.0.0
 python-docx>=1.1.0,<2.0.0
+docling>=1.0.0,<2.0.0
 
 # File watching for automatic ingestion
 watchdog>=3.0.0,<4.0.0
