@@ -9,6 +9,7 @@ import psycopg2.extras
 from psycopg2 import pool
 
 from .config import get_settings
+from .models import DocumentResult
 
 
 class VectorDAO:
@@ -241,8 +242,19 @@ class VectorDAO:
                         (query_embedding, top_k),
                     )
                 rows = cur.fetchall()
-                return [(int(r[0]), str(r[1]), float(r[2]), r[3], 
-                        r[4], r[5], r[6], r[7]) for r in rows]
+                results: List[DocumentResult] = []
+                for r in rows:
+                    results.append(DocumentResult(
+                        id=int(r[0]),
+                        content=str(r[1]) if r[1] is not None else "",
+                        score=float(r[2]),
+                        source_file=r[3],
+                        chunk_index=r[4] if len(r) > 4 else None,
+                        start_position=r[5] if len(r) > 5 else None,
+                        end_position=r[6] if len(r) > 6 else None,
+                        page_number=r[7] if len(r) > 7 else None,
+                    ))
+                return results
 
     def search_keyword(self, query_text: str, top_k: int = 5) -> List[Tuple[int, str, float, Optional[str]]]:
         """Keyword-based search for simple terms."""
@@ -278,7 +290,15 @@ class VectorDAO:
                     params + [f"%{query_text.lower()}%", top_k]
                 )
                 rows = cur.fetchall()
-                return [(int(r[0]), str(r[1]), float(r[2]), r[3]) for r in rows]
+                results: List[DocumentResult] = []
+                for r in rows:
+                    results.append(DocumentResult(
+                        id=int(r[0]),
+                        content=str(r[1]) if r[1] is not None else "",
+                        score=float(r[2]),
+                        source_file=r[3] if len(r) > 3 else None,
+                    ))
+                return results
 
 
     def search_enhanced(self, query_embedding: List[float], query_text: str,
@@ -314,10 +334,20 @@ class VectorDAO:
                     drug_results = []
                     for r in rows:
                         try:
-                            drug_results.append((int(r[0]), str(r[1]), float(r[2]), r[3]))
+                                    drug_results.append(DocumentResult(
+                                        id=int(r[0]),
+                                        content=str(r[1]) if r[1] is not None else "",
+                                        score=float(r[2]),
+                                        source_file=r[3] if len(r) > 3 else None,
+                                    ))
                         except (ValueError, TypeError):
                             # Handle Decimal or other numeric types
-                            drug_results.append((int(r[0]), str(r[1]), float(str(r[2])), r[3]))
+                            drug_results.append(DocumentResult(
+                                id=int(r[0]),
+                                content=str(r[1]) if r[1] is not None else "",
+                                score=float(str(r[2])),
+                                source_file=r[3] if len(r) > 3 else None,
+                            ))
 
                     if drug_results:
                         return drug_results
@@ -335,7 +365,14 @@ class VectorDAO:
                         """,
                         (f"%{query_text}%", top_k)
                     )
-                    exact_results = [(int(r[0]), str(r[1]), float(r[2]), r[3]) for r in cur.fetchall()]
+                    exact_results = []
+                    for r in cur.fetchall():
+                        exact_results.append(DocumentResult(
+                            id=int(r[0]),
+                            content=str(r[1]) if r[1] is not None else "",
+                            score=float(r[2]),
+                            source_file=r[3] if len(r) > 3 else None,
+                        ))
 
                 if exact_results:
                     return exact_results
@@ -366,7 +403,14 @@ class VectorDAO:
                         """,
                         params + params + [top_k]  # params twice: once for scoring, once for WHERE
                     )
-                    keyword_results = [(int(r[0]), str(r[1]), float(r[2]), r[3]) for r in cur.fetchall()]
+                    keyword_results = []
+                    for r in cur.fetchall():
+                        keyword_results.append(DocumentResult(
+                            id=int(r[0]),
+                            content=str(r[1]) if r[1] is not None else "",
+                            score=float(r[2]),
+                            source_file=r[3] if len(r) > 3 else None,
+                        ))
 
                     if keyword_results:
                         return keyword_results
@@ -375,35 +419,44 @@ class VectorDAO:
                 return self.search(query_embedding, top_k)
 
     def search_combined(self, query_embedding: List[float], query_text: str,
-                       top_k: int = 5) -> List[Tuple[int, str, float, Optional[str]]]:
+                       top_k: int = 5) -> List[DocumentResult]:
         """Combined semantic and keyword search with fallback."""
         # Try semantic search first
         semantic_results = self.search(query_embedding, top_k=top_k)
 
         # If semantic search returns poor results (high distances), try keyword search
-        if semantic_results and semantic_results[0][2] > 0.8:  # High distance = poor match
+        if semantic_results and semantic_results[0].score > 0.8:  # High distance = poor match
             keyword_results = self.search_keyword(query_text, top_k=top_k)
 
             # Combine results, preferring keyword matches for simple terms
             combined = {}
 
-            # Add keyword results with higher priority
-            for doc_id, content, score, source_file in keyword_results:
-                combined[doc_id] = (doc_id, content, score * 0.3, source_file)  # Lower score = better
+            # Add keyword results with higher priority (reduce score to boost them)
+            for kr in keyword_results:
+                combined[kr.id] = DocumentResult(
+                    id=kr.id,
+                    content=kr.content,
+                    score=kr.score * 0.3,
+                    source_file=kr.source_file,
+                    chunk_index=kr.chunk_index,
+                    start_position=kr.start_position,
+                    end_position=kr.end_position,
+                    page_number=kr.page_number,
+                )
 
             # Add semantic results
-            for doc_id, content, score, source_file in semantic_results:
-                if doc_id not in combined:
-                    combined[doc_id] = (doc_id, content, score, source_file)
+            for sr in semantic_results:
+                if sr.id not in combined:
+                    combined[sr.id] = sr
 
-            # Sort by score and return top_k
-            sorted_results = sorted(combined.values(), key=lambda x: x[2])
+            # Sort by score and return top_k DocumentResult objects
+            sorted_results = sorted(combined.values(), key=lambda x: x.score)
             return sorted_results[:top_k]
 
         return semantic_results
 
     def search_hybrid(self, query_embedding: List[float], query_text: str,
-                     top_k: int = 5, alpha: float = 0.7) -> List[Tuple[int, str, float, Optional[str]]]:
+                     top_k: int = 5, alpha: float = 0.7) -> List[DocumentResult]:
         """Hybrid search combining semantic and text similarity."""
         with self.get_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
@@ -422,7 +475,15 @@ class VectorDAO:
                     (alpha, query_embedding, 1-alpha, query_text, query_text, top_k),
                 )
                 rows = cur.fetchall()
-                return [(int(r[0]), str(r[1]), float(r[2]), r[3]) for r in rows]
+                results: List[DocumentResult] = []
+                for r in rows:
+                    results.append(DocumentResult(
+                        id=int(r[0]),
+                        content=str(r[1]) if r[1] is not None else "",
+                        score=float(r[2]),
+                        source_file=r[3] if len(r) > 3 else None,
+                    ))
+                return results
 
     def count_documents(self) -> int:
         """Count total documents."""

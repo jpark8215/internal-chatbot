@@ -26,3 +26,19 @@ class HealthResponse(BaseModel):
     status: str = Field(..., description="Overall API status")
     db: str = Field(..., description="Database connection status")
     local_llm: str = Field(..., description="Local LLM availability status")
+
+
+# Lightweight dataclass for normalized document results returned by the DAO
+from dataclasses import dataclass
+
+
+@dataclass
+class DocumentResult:
+    id: int
+    content: str
+    score: float
+    source_file: Optional[str] = None
+    chunk_index: Optional[int] = None
+    start_position: Optional[int] = None
+    end_position: Optional[int] = None
+    page_number: Optional[int] = None

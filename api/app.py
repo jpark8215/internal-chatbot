@@ -618,15 +618,15 @@ async def debug_search_comprehensive(
                 results["keyword_search"] = {
                     "success": True,
                     "results_count": len(keyword_results),
-                    "results": [
-                        {
-                            "id": doc_id,
-                            "score": float(score),
-                            "content_preview": content[:200] + "..." if len(content) > 200 else content,
-                            "source": source_file
-                        }
-                        for doc_id, content, score, source_file in keyword_results[:3]
-                    ]
+                        "results": [
+                            {
+                                "id": r[0],
+                                "score": float(r[2]) if len(r) > 2 else None,
+                                "content_preview": (r[1][:200] + "...") if len(r) > 1 and len(r[1]) > 200 else (r[1] if len(r) > 1 else ""),
+                                "source": r[3] if len(r) > 3 else None
+                            }
+                            for r in keyword_results[:3]
+                        ]
                 }
                 results["search_types_tested"].append("keyword")
             except Exception as e:
@@ -644,12 +644,12 @@ async def debug_search_comprehensive(
                         "results_count": len(semantic_results),
                         "results": [
                             {
-                                "id": doc_id,
-                                "score": float(score),
-                                "content_preview": content[:200] + "..." if len(content) > 200 else content,
-                                "source": source_file
+                                "id": r[0],
+                                "score": float(r[2]) if len(r) > 2 else None,
+                                "content_preview": (r[1][:200] + "...") if len(r) > 1 and len(r[1]) > 200 else (r[1] if len(r) > 1 else ""),
+                                "source": r[3] if len(r) > 3 else None
                             }
-                            for doc_id, content, score, source_file in semantic_results[:3]
+                            for r in semantic_results[:3]
                         ]
                     }
                     results["search_types_tested"].append("semantic")
@@ -669,12 +669,12 @@ async def debug_search_comprehensive(
                         "results_count": len(hybrid_results),
                         "results": [
                             {
-                                "id": doc_id,
-                                "score": float(score),
-                                "content_preview": content[:200] + "..." if len(content) > 200 else content,
-                                "source": source_file
+                                "id": r[0],
+                                "score": float(r[2]) if len(r) > 2 else None,
+                                "content_preview": (r[1][:200] + "...") if len(r) > 1 and len(r[1]) > 200 else (r[1] if len(r) > 1 else ""),
+                                "source": r[3] if len(r) > 3 else None
                             }
-                            for doc_id, content, score, source_file in hybrid_results[:3]
+                            for r in hybrid_results[:3]
                         ]
                     }
                     results["search_types_tested"].append("hybrid")

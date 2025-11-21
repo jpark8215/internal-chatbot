@@ -10,8 +10,10 @@ from enum import Enum
 
 from .config import get_settings
 from .dao import get_dao
-from .embeddings import embed_texts
+from .embeddings import embed_texts, embed_texts_batch
+from .query_rewriter import rewrite_query, merge_search_results
 from .local_model import get_local_llm
+from .models import DocumentResult
 from .logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -30,11 +32,12 @@ class SearchStrategy(Enum):
 @dataclass
 class RetrievalResult:
     """Structured result from document retrieval."""
-    documents: List[Tuple[int, str, float, Optional[str]]]
+    documents: List[DocumentResult]
     strategy_used: SearchStrategy
     retrieval_time_ms: float
     embedding_time_ms: Optional[float] = None
     total_documents_searched: int = 0
+    subqueries: Optional[List[str]] = None
 
 
 @dataclass
@@ -115,6 +118,50 @@ class RAGService:
         documents = []
         
         try:
+            # Attempt query rewrite / subquery generation to improve retrieval for complex queries
+            rewrite = await rewrite_query(query, llm=self.llm, max_subqueries=min(4, top_k or self.default_top_k))
+            if rewrite and rewrite.get("type") == "subqueries":
+                subqueries = rewrite.get("subqueries", [])
+                logger.info(f"Using {len(subqueries)} subqueries for retrieval")
+
+                # Batch embed subqueries
+                embed_start = time.time()
+                vectors = await embed_texts_batch(subqueries)
+                embedding_time_ms = (time.time() - embed_start) * 1000
+
+                # Determine per-subquery top_k to limit retrieval size
+                per_k = max(1, int(((top_k or self.default_top_k) / max(1, len(subqueries))) * 2))
+
+                # Launch concurrent searches for each subquery
+                search_tasks = []
+                for i, vec in enumerate(vectors):
+                    if strategy == SearchStrategy.KEYWORD:
+                        # keyword search uses the subquery text
+                        search_tasks.append(asyncio.create_task(self.dao.search_keyword(subqueries[i], per_k)))
+                    else:
+                        search_tasks.append(asyncio.create_task(self.dao.search(vec, per_k)))
+
+                sub_results = await asyncio.gather(*search_tasks, return_exceptions=False)
+
+                # Merge and deduplicate results
+                merged = merge_search_results(sub_results)
+                documents = merged[: (top_k or self.default_top_k)]
+
+                retrieval_time_ms = (time.time() - start_time) * 1000
+
+                # Cache merged result if enabled
+                if cache is not None and cache_key_params is not None and documents:
+                    cache.put("document_retrieval", cache_key_params, documents)
+
+                return RetrievalResult(
+                    documents=documents,
+                    strategy_used=strategy,
+                    retrieval_time_ms=retrieval_time_ms,
+                    embedding_time_ms=embedding_time_ms,
+                    total_documents_searched=self.dao.count_documents(),
+                    subqueries=subqueries
+                )
+
             if strategy in [SearchStrategy.SEMANTIC, SearchStrategy.HYBRID, SearchStrategy.ENHANCED, SearchStrategy.COMBINED, SearchStrategy.FAST]:
                 # Generate embeddings
                 embed_start = time.time()
@@ -138,7 +185,8 @@ class RAGService:
             # Filter by relevance threshold
             logger.debug(f"Retrieved {len(documents)} documents before filtering")
             if documents:
-                logger.debug(f"Best document score: {documents[0][2]}")
+                # documents are DocumentResult instances
+                logger.debug(f"Best document score: {documents[0].score}")
             
             # Apply relevance filtering
             documents = self._filter_by_relevance(documents, strategy)
@@ -240,74 +288,81 @@ class RAGService:
         # Default to semantic search for speed
         return SearchStrategy.SEMANTIC
     
-    def _filter_by_relevance(self, documents: List[Tuple[int, str, float, Optional[str]]], 
-                           strategy: SearchStrategy) -> List[Tuple[int, str, float, Optional[str]]]:
+    def _filter_by_relevance(self, documents: List[DocumentResult], 
+                           strategy: SearchStrategy) -> List[DocumentResult]:
         """Filter documents by relevance threshold with strategy-specific logic."""
         if not documents:
             return documents
-        
+
         # Different thresholds for different strategies
         if strategy == SearchStrategy.SEMANTIC:
             # For semantic search, use adaptive threshold based on score distribution
             if len(documents) > 1:
-                best_score = documents[0][2]
+                best_score = documents[0].score
                 # Allow documents within 50% of the best score
                 adaptive_threshold = best_score * 1.5
                 threshold = min(self.relevance_threshold, adaptive_threshold)
             else:
                 threshold = self.relevance_threshold
-            return [doc for doc in documents if doc[2] <= threshold]
-        
+            return [doc for doc in documents if doc.score <= threshold]
+
         elif strategy == SearchStrategy.KEYWORD:
             # For keyword search, we trust the ranking but apply basic filtering
             return documents  # Keep all keyword results
-        
+
         elif strategy in [SearchStrategy.ENHANCED, SearchStrategy.COMBINED]:
             # For enhanced/combined, use more permissive threshold for better recall
             if documents:
-                best_score = documents[0][2]
+                best_score = documents[0].score
                 # Allow documents within 75% of the best score for better coverage
                 adaptive_threshold = best_score * 1.75
                 threshold = min(self.relevance_threshold * 1.2, adaptive_threshold)
-                return [doc for doc in documents if doc[2] <= threshold]
-        
+                return [doc for doc in documents if doc.score <= threshold]
+
         else:
             # For hybrid and other strategies, use standard threshold
-            return [doc for doc in documents if doc[2] <= self.relevance_threshold]
-        
+            return [doc for doc in documents if doc.score <= self.relevance_threshold]
+
         return documents
     
-    def _build_context(self, documents: List[Tuple[int, str, float, Optional[str]]], query: str = "") -> Tuple[str, List[Dict[str, Any]]]:
+    def _build_context(self, documents: List[DocumentResult], query: str = "") -> Tuple[str, List[Dict[str, Any]]]:
         """Build context string and source metadata from retrieved documents with smart prioritization."""
         logger.debug(f"Building context from {len(documents)} documents")
         if not documents:
             logger.warning("No documents provided to build context")
             return "", []
-        
+
         # Apply source-specific boosting based on query
         boosted_documents = self._apply_source_boosting(documents, query)
-        
-        ctx_chunks = []
-        sources = []
-        
-        for i, doc_tuple in enumerate(boosted_documents):
-            # Handle both old format (4 items) and new format (8 items with metadata)
-            if len(doc_tuple) == 4:
-                doc_id, content, score, source_file = doc_tuple
-                chunk_index = start_position = end_position = page_number = None
-            else:
-                doc_id, content, score, source_file, chunk_index, start_position, end_position, page_number = doc_tuple
-            
+
+        ctx_chunks: List[str] = []
+        sources: List[Dict[str, Any]] = []
+
+        for i, doc in enumerate(boosted_documents):
+            # Expect DocumentResult instances
+            if not isinstance(doc, DocumentResult):
+                logger.warning(f"Unexpected document format in context builder: {doc}")
+                continue
+
+            doc_id = doc.id
+            content = doc.content or ""
+            score = doc.score
+            source_file = doc.source_file
+            chunk_index = doc.chunk_index
+            start_position = doc.start_position
+            end_position = doc.end_position
+            page_number = doc.page_number
+
             # Truncate very long content
             if len(content) > 2000:
                 content = content[:2000] + "..."
-            
+
             # Clean up source file path for display
             display_source = source_file or "Unknown Document"
             if source_file:
                 # Extract just the filename
                 display_source = source_file.split('/')[-1].split('\\')[-1]
-            
+
             # Normalize score for better user understanding
             # For cosine distance (lower is better), convert to similarity percentage
             # Typical good matches are in 10-20 range, excellent matches < 10
@@ -329,17 +384,17 @@ class RAGService:
             else:
                 # Very poor match: < 25%
                 normalized_score = max(0.05, 0.25 - ((score - 25.0) / 10.0) * 0.20)
-            
+
             # Ensure score is between 0 and 1
             normalized_score = max(0.0, min(1.0, normalized_score))
-            
+
             # Build source info with metadata
             source_info = f"[Source {i+1}]"
             if page_number:
                 source_info += f" (Page {page_number})"
             if chunk_index is not None:
                 source_info += f" (Chunk {chunk_index + 1})"
-            
+
             ctx_chunks.append(f"{source_info}\n{content}")
             sources.append({
                 "id": doc_id,
@@ -352,25 +407,8 @@ class RAGService:
                 "start_position": start_position,
                 "end_position": end_position
             })
-        
-        context_text = "\n\n".join(ctx_chunks)
-        
-        # Ensure context doesn't exceed max length
-        if len(context_text) > self.max_context_length:
-            # Truncate and keep most relevant sources
-            truncated_chunks = []
-            current_length = 0
-            
-            for chunk in ctx_chunks:
-                if current_length + len(chunk) > self.max_context_length:
-                    break
-                truncated_chunks.append(chunk)
-                current_length += len(chunk)
-            
-            context_text = "\n\n".join(truncated_chunks)
-            sources = sources[:len(truncated_chunks)]
-        
-        return context_text, sources
+
+        return self._truncate_context(ctx_chunks, sources)
     
     def _generate_quality_indicators(self, query: str, sources: List[Dict[str, Any]], 
                                    strategy_used: SearchStrategy) -> Dict[str, Any]:
@@ -453,86 +491,87 @@ class RAGService:
         else:
             return "complex"
     
-    def _apply_source_boosting(self, documents: List[Tuple[int, str, float, Optional[str]]], query: str) -> List[Tuple[int, str, float, Optional[str]]]:
+    def _apply_source_boosting(self, documents: List[DocumentResult], query: str) -> List[DocumentResult]:
         """Apply source-specific boosting based on query content and user feedback."""
         if not documents:
             return documents
-        
-        query_lower = query.lower()
-        
-        # Apply rule-based source boosting
-        boosted_docs = []
-        
-        for doc_tuple in documents:
-            # Handle both old format (4 items) and new format (8 items with metadata)
-            if len(doc_tuple) == 4:
-                doc_id, content, score, source_file = doc_tuple
-                chunk_index = start_position = end_position = page_number = None
-            else:
-                doc_id, content, score, source_file, chunk_index, start_position, end_position, page_number = doc_tuple
-            boost_factor = 1.0
-            
-            if source_file:
-                filename = source_file.lower()
-                
-                # HCBS queries should prioritize HCBS manual
-                if any(keyword in query_lower for keyword in ['hcbs', 'waiver', 'home and community', 'bh hcbs']):
-                    if 'hcbs' in filename:
-                        boost_factor *= 0.9  # Slight boost (lower score = higher priority)
-                    elif 'policy' in filename:
-                        boost_factor *= 1.1  # Slight penalty
-                
-                # CCBHC queries should prioritize CCBHC manual
-                elif any(keyword in query_lower for keyword in ['ccbhc', 'quality measures', 'certified community']):
-                    if 'ccbhc' in filename or 'quality' in filename:
-                        boost_factor *= 0.9
-                    elif 'hcbs' in filename:
-                        boost_factor *= 1.05
-                
-                # Policy queries should prioritize policy manual
-                elif any(keyword in query_lower for keyword in ['policy', 'procedure', 'manual']):
-                    if 'policy' in filename:
-                        boost_factor *= 0.9
-                    elif 'hcbs' in filename:
-                        boost_factor *= 1.05
-            
-            # Apply boost to score
-            boosted_score = score * boost_factor
-            
-            # Preserve metadata if present
-            if len(doc_tuple) == 4:
-                boosted_docs.append((doc_id, content, boosted_score, source_file))
-            else:
-                boosted_docs.append((doc_id, content, boosted_score, source_file, 
-                                   chunk_index, start_position, end_position, page_number))
-        
-        # Re-sort by boosted scores
-        boosted_docs.sort(key=lambda x: x[2])  # Sort by score (lower is better)
-        
-        return boosted_docs
-    
 
-        
+        query_lower = query.lower()
+
+        # Apply rule-based source boosting
+        boosted_docs: List[DocumentResult] = []
+
+        for doc in documents:
+            if not isinstance(doc, DocumentResult):
+                logger.warning(f"Unexpected document format in boosting: {doc}")
+                continue
+
+            boost_factor = 1.0
+            source_file = doc.source_file or ""
+            filename = source_file.lower()
+
+            # HCBS queries should prioritize HCBS manual
+            if any(keyword in query_lower for keyword in ['hcbs', 'waiver', 'home and community', 'bh hcbs']):
+                if 'hcbs' in filename:
+                    boost_factor *= 0.9  # Slight boost (lower score = higher priority)
+                elif 'policy' in filename:
+                    boost_factor *= 1.1  # Slight penalty
+
+            # CCBHC queries should prioritize CCBHC manual
+            elif any(keyword in query_lower for keyword in ['ccbhc', 'quality measures', 'certified community']):
+                if 'ccbhc' in filename or 'quality' in filename:
+                    boost_factor *= 0.9
+                elif 'hcbs' in filename:
+                    boost_factor *= 1.05
+
+            # Policy queries should prioritize policy manual
+            elif any(keyword in query_lower for keyword in ['policy', 'procedure', 'manual']):
+                if 'policy' in filename:
+                    boost_factor *= 0.9
+                elif 'hcbs' in filename:
+                    boost_factor *= 1.05
+
+            # Apply boost to score by creating a new DocumentResult with adjusted score
+            boosted_score = doc.score * boost_factor
+            boosted_doc = DocumentResult(
+                id=doc.id,
+                content=doc.content,
+                score=boosted_score,
+                source_file=doc.source_file,
+                chunk_index=doc.chunk_index,
+                start_position=doc.start_position,
+                end_position=doc.end_position,
+                page_number=doc.page_number,
+            )
+            boosted_docs.append(boosted_doc)
+
+        # Re-sort by boosted scores
+        boosted_docs.sort(key=lambda x: x.score)  # Sort by score (lower is better)
+
+        return boosted_docs
+
+    def _truncate_context(self, ctx_chunks: List[str], sources: List[Dict[str, Any]]) -> Tuple[str, List[Dict[str, Any]]]:
+        """Truncate context chunks to fit within max_context_length and align sources."""
         context_text = "\n\n".join(ctx_chunks)
-        
+
         # Ensure context doesn't exceed max length
         if len(context_text) > self.max_context_length:
             # Truncate and keep most relevant sources
-            truncated_chunks = []
+            truncated_chunks: List[str] = []
             current_length = 0
-            
+
             for chunk in ctx_chunks:
                 if current_length + len(chunk) > self.max_context_length:
                     break
                 truncated_chunks.append(chunk)
                 current_length += len(chunk)
-            
+
             context_text = "\n\n".join(truncated_chunks)
             sources = sources[:len(truncated_chunks)]
-        
+
         return context_text, sources
-    
-    async def _build_context_async(self, documents: List[Tuple[int, str, float, Optional[str]]], query: str = "") -> Tuple[str, List[Dict[str, Any]]]:
+
+    async def _build_context_async(self, documents: List[DocumentResult], query: str = "") -> Tuple[str, List[Dict[str, Any]]]:
         """Async wrapper for context building to enable parallel processing."""
         return self._build_context(documents, query)
     
