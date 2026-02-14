@@ -195,42 +195,42 @@ py -m api.main
 ### Core Settings
 ```env
 # LLM Configuration
-DEFAULT_MODEL=mistral:7b                    # Primary language model
-EMBEDDING_MODEL=nomic-embed-text:latest     # Embedding model
-OLLAMA_HOST=http://host.docker.internal:11434          # Ollama service URL
+DEFAULT_MODEL=mistral:7b                        # Primary language model
+EMBEDDING_MODEL=nomic-embed-text:latest         # Embedding model
+OLLAMA_HOST=http://host.docker.internal:11434   # Ollama service URL
 
 # Database
 DATABASE_URL=postgres://user:pass@host:port/db  # PostgreSQL connection
-DATABASE_POOL_SIZE=100                      # Connection pool size
-DATABASE_MAX_OVERFLOW=200                   # Max overflow connections
+DATABASE_POOL_SIZE=100                          # Connection pool size
+DATABASE_MAX_OVERFLOW=200                       # Max overflow connections
 ```
 
 ### Performance Tuning
 ```env
 # Processing
-EMBEDDING_BATCH_SIZE=50                     # Batch size for embeddings
-MAX_CONCURRENT_REQUESTS=20                  # Max concurrent Ollama requests
-ENABLE_FAST_MODE=true                       # Enable performance optimizations
+EMBEDDING_BATCH_SIZE=50                         # Batch size for embeddings
+MAX_CONCURRENT_REQUESTS=20                      # Max concurrent Ollama requests
+ENABLE_FAST_MODE=true                           # Enable performance optimizations
 
 # Caching
-CACHE_MAX_SIZE=10000                        # Response cache size
-EMBEDDING_CACHE_SIZE=2000                   # Embedding cache size
-QUERY_RESULT_CACHE_TTL=600                  # Query cache TTL (seconds)
-ENABLE_EMBEDDING_CACHE=true                 # Enable embedding caching
-ENABLE_QUERY_RESULT_CACHE=true              # Enable query result caching
+CACHE_MAX_SIZE=10000                            # Response cache size
+EMBEDDING_CACHE_SIZE=2000                       # Embedding cache size
+QUERY_RESULT_CACHE_TTL=600                      # Query cache TTL (seconds)
+ENABLE_EMBEDDING_CACHE=true                     # Enable embedding caching
+ENABLE_QUERY_RESULT_CACHE=true                  # Enable query result caching
 ```
 
 ### File Management
 ```env
 # Auto-ingestion
-AUTO_INGEST_ON_START=true                   # Process files on startup
-AUTO_INGEST_PATH=/path/to/documents         # Document directory path
-AUTO_INGEST_WATCH_MODE=true                 # Enable file watching
-AUTO_INGEST_WATCH_INTERVAL=60               # File check interval (seconds)
+AUTO_INGEST_ON_START=true                       # Process files on startup
+AUTO_INGEST_PATH=/path/to/documents             # Document directory path
+AUTO_INGEST_WATCH_MODE=true                     # Enable file watching
+AUTO_INGEST_WATCH_INTERVAL=60                   # File check interval (seconds)
 
 # Automatic cleanup
-ENABLE_SCHEDULED_CLEANUP=true               # Enable automatic orphaned cleanup
-CLEANUP_INTERVAL=600                        # Cleanup interval (seconds)
+ENABLE_SCHEDULED_CLEANUP=true                   # Enable automatic orphaned cleanup
+CLEANUP_INTERVAL=600                            # Cleanup interval (seconds)
 ```
 
 ## 🚀 Performance Benchmarks

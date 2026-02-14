@@ -137,9 +137,13 @@ class RAGService:
                 for i, vec in enumerate(vectors):
                     if strategy == SearchStrategy.KEYWORD:
                         # keyword search uses the subquery text
-                        search_tasks.append(asyncio.create_task(self.dao.search_keyword(subqueries[i], per_k)))
+                        search_tasks.append(asyncio.create_task(
+                            asyncio.to_thread(self.dao.search_keyword, subqueries[i], per_k)
+                        ))
                     else:
-                        search_tasks.append(asyncio.create_task(self.dao.search(vec, per_k)))
+                        search_tasks.append(asyncio.create_task(
+                            asyncio.to_thread(self.dao.search, vec, per_k)
+                        ))
 
                 sub_results = await asyncio.gather(*search_tasks, return_exceptions=False)
 
