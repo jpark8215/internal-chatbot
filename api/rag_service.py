@@ -69,14 +69,13 @@ class RAGService:
         
         # System prompts
         self.base_system_prompt = (
-            "You are a document retrieval assistant. Your ONLY job is to present information from the provided documents.\n"
+            "You are a document retrieval assistant. Your job is to answer the user's question using the provided documents.\n"
             "RULES:\n"
-            "1. ONLY use information that is explicitly stated in the provided documents\n"
-            "2. Do NOT generate, infer, or create any new information\n"
-            "3. If the documents don't contain the answer, say 'I don't have information about this in the available documents'\n"
-            "4. Present the information in a clear, organized way using the exact content from the documents\n"
-            "5. Cite sources as [Source N] when presenting information\n"
-            "6. If multiple documents contain relevant information, combine them clearly\n\n"
+            "1. Use information from the provided documents. You may infer answers if the context strongly supports it, but do not make up information.\n"
+            "2. If the documents don't contain enough information to answer, say 'I don't have enough information about this in the available documents'.\n"
+            "3. Present the information in a clear, organized way.\n"
+            "4. Cite sources as [Source N] when presenting information.\n"
+            "5. If multiple documents contain relevant information, combine them clearly.\n\n"
         )
     
     async def retrieve_documents(self, query: str, top_k: Optional[int] = None, 
@@ -392,8 +391,10 @@ class RAGService:
             # Ensure score is between 0 and 1
             normalized_score = max(0.0, min(1.0, normalized_score))
 
-            # Build source info with metadata
+        # Build source info with metadata
             source_info = f"[Source {i+1}]"
+            if display_source and display_source != "Unknown Document":
+                 source_info += f" {display_source}"
             if page_number:
                 source_info += f" (Page {page_number})"
             if chunk_index is not None:

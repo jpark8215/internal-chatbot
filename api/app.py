@@ -387,10 +387,21 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
         # Generate response using RAG service
         logger.info(f"Processing query: {req.prompt[:100]}...", extra={"correlation_id": correlation_id})
         
+        # Parse strategy
+        from .rag_service import SearchStrategy
+        strategy = None
+        if req.strategy:
+            try:
+                # Handle case-insensitive strategy names
+                strategy = SearchStrategy(req.strategy.lower())
+            except ValueError:
+                logger.warning(f"Invalid strategy '{req.strategy}' requested, using default")
+
         rag_response = await rag_service.generate_response(
             query=req.prompt,
             user_system_prompt=req.system_prompt,
-            top_k=5
+            top_k=5,
+            strategy=strategy
         )
 
         if rag_response.success:
