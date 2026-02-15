@@ -499,3 +499,8 @@ Access comprehensive monitoring through:
 - **Security Ready**: Authentication hooks and secure configuration management
 - **High Availability**: Connection pooling, failover support, and health monitoring
 - **Data Integrity**: Automatic backup recommendations and data consistency checks
+
+
+/*
+Strategies: SEMANTIC (vector), KEYWORD (text), HYBRID (both), ENHANCED (rule-based + hybrid), COMBINED (fallback)
+*/

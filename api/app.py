@@ -1236,6 +1236,42 @@ async def submit_feedback(feedback_req: FeedbackRequest):
         
         feedback_id = feedback_dao.save_feedback(feedback)
         
+        # Invalidate cache for negative feedback or incorrect responses
+        try:
+            should_invalidate = False
+            # Check for negative rating (<= 2)
+            if feedback.rating and feedback.rating <= 2:
+                should_invalidate = True
+            # Check for accuracy flags
+            elif feedback.is_accurate is False:
+                should_invalidate = True
+            # Check for incorrect info text
+            elif feedback.incorrect_info:
+                should_invalidate = True
+                
+            if should_invalidate and feedback.query_text:
+                invalidated_any = False
+
+                # 1) Invalidate retrieval cache (document_retrieval)
+                from .query_result_cache import get_query_result_cache
+                query_cache = get_query_result_cache()
+                invalidated = query_cache.invalidate_by_text(feedback.query_text)
+                invalidated_any = invalidated_any or (invalidated > 0)
+
+                # 2) Invalidate response cache (this is what /generate checks first)
+                try:
+                    from .response_cache import get_response_cache
+                    response_cache = get_response_cache()
+                    invalidated_resp = response_cache.invalidate_all_variants(feedback.query_text)
+                    invalidated_any = invalidated_any or (invalidated_resp > 0)
+                except Exception as e:
+                    logger.error(f"Failed to invalidate response cache on feedback: {e}")
+
+                if invalidated_any:
+                    logger.info(f"Invalidated cache for query '{feedback.query_text}' due to feedback (id: {feedback_id})")
+        except Exception as e:
+            logger.error(f"Failed to invalidate cache on feedback: {e}")
+        
         return {
             "success": True,
             "feedback_id": feedback_id,

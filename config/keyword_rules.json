@@ -1,0 +1,66 @@
+{
+    "rules": [
+        {
+            "keywords": [
+                "hcbs",
+                "waiver",
+                "home and community",
+                "behavioral health hcbs",
+                "bh hcbs",
+                "harp"
+            ],
+            "strategy": "enhanced",
+            "boost_sources": [
+                "Health",
+                "Recovery"
+            ],
+            "description": "HCBS Manual priority for waiver-related queries"
+        },
+        {
+            "keywords": [
+                "ccbhc",
+                "certified community behavioral health clinic",
+                "quality measures",
+                "quality metrics"
+            ],
+            "strategy": "enhanced",
+            "boost_sources": [
+                "ccbhc"
+            ],
+            "description": "CCBHC-specific queries"
+        },
+        {
+            "keywords": [
+                "Lea",
+                "county"
+            ],
+            "strategy": "combined",
+            "boost_sources": [
+                "lea",
+                "county"
+            ],
+            "description": "LEA County Policy and procedure documentation"
+        },
+        {
+            "keywords": [
+                "core"
+            ],
+            "strategy": "enhanced",
+            "boost_sources": [
+                "core"
+            ],
+            "description": "Core services"
+        },
+        {
+            "keywords": [
+                "RHA",
+                "HR"
+            ],
+            "strategy": "enhanced",
+            "boost_sources": [
+                "rha"
+            ],
+            "description": "RHA documentation"
+        }
+    ]
+}

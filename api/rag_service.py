@@ -72,10 +72,11 @@ class RAGService:
             "You are a document retrieval assistant. Your job is to answer the user's question using the provided documents.\n"
             "RULES:\n"
             "1. Use information from the provided documents. You may infer answers if the context strongly supports it, but do not make up information.\n"
-            "2. If the documents don't contain enough information to answer, say 'I don't have enough information about this in the available documents'.\n"
+            "2. You must quote the exact line(s) from the provided documents that support each factual claim. Use short, verbatim quotes.\n"
             "3. Present the information in a clear, organized way.\n"
-            "4. Cite sources as [Source N] when presenting information.\n"
-            "5. If multiple documents contain relevant information, combine them clearly.\n\n"
+            "4. Cite sources immediately after the quote.\n"
+            "5. If multiple documents contain relevant information, combine them clearly.\n"
+            "6. Only say 'I don't have enough information about this in the available documents' if you cannot find any relevant quote in the provided documents.\n\n"
         )
     
     async def retrieve_documents(self, query: str, top_k: Optional[int] = None, 
@@ -220,75 +221,25 @@ class RAGService:
     
     def _determine_optimal_strategy(self, query: str) -> SearchStrategy:
         """Determine optimal search strategy based on query characteristics and user feedback."""
+        from .keyword_config import KeywordConfig
+        
+        # Check configurable rules first
+        config_strategy = KeywordConfig.get_instance().get_strategy_for_query(query)
+        if config_strategy:
+            return config_strategy
+            
         query_lower = query.lower()
-        
-        # Balanced approach: maintain accuracy while optimizing speed
         query_words = len(query.split())
-        
-        # HCBS-specific queries should use enhanced search for better accuracy
-        hcbs_keywords = ['hcbs', 'home and community', 'behavioral health hcbs', 'bh hcbs', 'harp']
-        if any(keyword in query_lower for keyword in hcbs_keywords):
-            return SearchStrategy.ENHANCED  # Better accuracy for complex HCBS queries
-        
-        # CCBHC queries should use enhanced search
-        ccbhc_keywords = ['ccbhc', 'certified community behavioral health clinic', 'quality measures']
-        if any(keyword in query_lower for keyword in ccbhc_keywords):
-            return SearchStrategy.ENHANCED
-        
-        # Policy-related queries benefit from combined search
-        policy_keywords = ['policy', 'procedure', 'manual', 'guideline', 'documentation']
-        if any(keyword in query_lower for keyword in policy_keywords):
-            return SearchStrategy.COMBINED  # Better for policy documents
-        
-        # Drug/substance queries benefit from enhanced search
-        drug_keywords = ['drug', 'substance', 'test', 'testing', 'list', 'screening']
-        if any(keyword in query_lower for keyword in drug_keywords):
-            return SearchStrategy.ENHANCED  # Better for finding specific lists
         
         # Short queries or exact terms benefit from keyword search
         if query_words <= 2 or any(char in query for char in ['"', "'"]):
             return SearchStrategy.KEYWORD
-        
-        # Complex queries (admission criteria, specific requirements) use enhanced
-        complex_keywords = ['criteria', 'requirements', 'eligibility', 'admission', 'specific', 'detailed']
-        if any(keyword in query_lower for keyword in complex_keywords):
-            return SearchStrategy.ENHANCED
         
         # For fast mode, use semantic for general queries to balance speed and accuracy
         if getattr(self.settings, 'enable_fast_mode', True):
             return SearchStrategy.SEMANTIC
         
         # Default to semantic search for general queries
-        return SearchStrategy.SEMANTIC
-        
-        # Feedback-based strategy selection disabled (module not available)
-        # This would require implementing a proper feedback system
-        
-        # HCBS-specific queries should prioritize HCBS manual
-        hcbs_keywords = ['hcbs', 'waiver', 'home and community', 'behavioral health hcbs', 'bh hcbs']
-        if any(keyword in query_lower for keyword in hcbs_keywords):
-            return SearchStrategy.SEMANTIC  # Use semantic for speed instead of enhanced
-        
-        # CCBHC queries should use semantic search
-        ccbhc_keywords = ['ccbhc', 'certified community behavioral health clinic', 'quality measures']
-        if any(keyword in query_lower for keyword in ccbhc_keywords):
-            return SearchStrategy.SEMANTIC
-        
-        # Policy-related queries
-        policy_keywords = ['policy', 'procedure', 'manual', 'guideline']
-        if any(keyword in query_lower for keyword in policy_keywords):
-            return SearchStrategy.SEMANTIC  # Use semantic for speed instead of combined
-        
-        # Drug/substance queries benefit from enhanced search
-        drug_keywords = ['drug', 'substance', 'test', 'testing', 'list']
-        if any(keyword in query_lower for keyword in drug_keywords):
-            return SearchStrategy.KEYWORD  # Use keyword for speed
-        
-        # Short queries or exact terms benefit from keyword search
-        if len(query.split()) <= 2 or any(char in query for char in ['"', "'"]):
-            return SearchStrategy.KEYWORD
-        
-        # Default to semantic search for speed
         return SearchStrategy.SEMANTIC
     
     def _filter_by_relevance(self, documents: List[DocumentResult], 
@@ -335,6 +286,7 @@ class RAGService:
             logger.warning("No documents provided to build context")
             return "", []
 
+
         # Apply source-specific boosting based on query
         boosted_documents = self._apply_source_boosting(documents, query)
 
@@ -351,7 +303,6 @@ class RAGService:
             content = doc.content or ""
             score = doc.score
             source_file = doc.source_file
-            chunk_index = doc.chunk_index
             start_position = doc.start_position
             end_position = doc.end_position
             page_number = doc.page_number
@@ -391,47 +342,25 @@ class RAGService:
             # Ensure score is between 0 and 1
             normalized_score = max(0.0, min(1.0, normalized_score))
 
-        # Build source info with metadata
-            source_info = f"[Source {i+1}]"
-            if display_source and display_source != "Unknown Document":
-                 source_info += f" {display_source}"
+            # Build source info with metadata
+            source_title = display_source or "Unknown Document"
+            source_info = f"[{source_title}]"
             if page_number:
                 source_info += f" (Page {page_number})"
-            if chunk_index is not None:
-                source_info += f" (Chunk {chunk_index + 1})"
 
             ctx_chunks.append(f"{source_info}\n{content}")
             sources.append({
                 "id": doc_id,
-                "source_file": display_source,
+                "source_file": source_title,
                 "score": float(normalized_score),  # Normalized 0-1 score
                 "raw_score": float(score),  # Keep original for debugging
                 "content_preview": content[:200] + "..." if len(content) > 200 else content,
                 "page_number": page_number,
-                "chunk_index": chunk_index,
                 "start_position": start_position,
                 "end_position": end_position
             })
 
         return self._truncate_context(ctx_chunks, sources)
-    
-    def _generate_quality_indicators(self, query: str, sources: List[Dict[str, Any]], 
-                                   strategy_used: SearchStrategy) -> Dict[str, Any]:
-        """Generate quality indicators based on source quality and query characteristics."""
-        # Calculate confidence score based on source quality
-        source_confidence = self._calculate_source_confidence(sources, query)
-        
-        # Get expected accuracy based on query type and sources
-        expected_accuracy = self._estimate_response_accuracy(query, sources)
-        
-        return {
-            "confidence_score": source_confidence,
-            "expected_accuracy": expected_accuracy,
-            "source_quality_score": self._calculate_overall_source_quality(sources),
-            "query_complexity": self._assess_query_complexity(query),
-            "strategy_used": strategy_used.value,
-            "feedback_informed": False
-        }
     
     def _calculate_source_confidence(self, sources: List[Dict[str, Any]], query: str) -> float:
         """Calculate confidence score based on source quality and relevance."""
@@ -500,10 +429,16 @@ class RAGService:
         """Apply source-specific boosting based on query content and user feedback."""
         if not documents:
             return documents
+        
+        from .keyword_config import KeywordConfig
+        
+        # Get boost rules from config
+        boost_sources = KeywordConfig.get_instance().get_boost_rules_for_query(query)
+        if not boost_sources:
+            # Fallback to simple query matching if no rules
+            return documents
 
-        query_lower = query.lower()
-
-        # Apply rule-based source boosting
+        # Apply boosting
         boosted_docs: List[DocumentResult] = []
 
         for doc in documents:
@@ -512,31 +447,15 @@ class RAGService:
                 continue
 
             boost_factor = 1.0
-            source_file = doc.source_file or ""
-            filename = source_file.lower()
+            source_file = (doc.source_file or "").lower()
+            
+            # Check if document matches any boosted source keyword
+            for boost_keyword in boost_sources:
+                if boost_keyword.lower() in source_file:
+                    boost_factor *= 0.85  # Boost score (lower is better)
+                    break
 
-            # HCBS queries should prioritize HCBS manual
-            if any(keyword in query_lower for keyword in ['hcbs', 'waiver', 'home and community', 'bh hcbs']):
-                if 'hcbs' in filename:
-                    boost_factor *= 0.9  # Slight boost (lower score = higher priority)
-                elif 'policy' in filename:
-                    boost_factor *= 1.1  # Slight penalty
-
-            # CCBHC queries should prioritize CCBHC manual
-            elif any(keyword in query_lower for keyword in ['ccbhc', 'quality measures', 'certified community']):
-                if 'ccbhc' in filename or 'quality' in filename:
-                    boost_factor *= 0.9
-                elif 'hcbs' in filename:
-                    boost_factor *= 1.05
-
-            # Policy queries should prioritize policy manual
-            elif any(keyword in query_lower for keyword in ['policy', 'procedure', 'manual']):
-                if 'policy' in filename:
-                    boost_factor *= 0.9
-                elif 'hcbs' in filename:
-                    boost_factor *= 1.05
-
-            # Apply boost to score by creating a new DocumentResult with adjusted score
+            # Apply boost to score
             boosted_score = doc.score * boost_factor
             boosted_doc = DocumentResult(
                 id=doc.id,
@@ -551,7 +470,7 @@ class RAGService:
             boosted_docs.append(boosted_doc)
 
         # Re-sort by boosted scores
-        boosted_docs.sort(key=lambda x: x.score)  # Sort by score (lower is better)
+        boosted_docs.sort(key=lambda x: x.score)
 
         return boosted_docs
 

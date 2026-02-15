@@ -18,6 +18,8 @@ logger = get_logger(__name__)
 @dataclass
 class CachedResponse:
     """Cached response data."""
+    normalized_query: str
+    system_prompt: str
     text: str
     sources: list
     model_used: str
@@ -94,10 +96,14 @@ class ResponseCache:
             system_prompt: Optional[str] = None) -> None:
         """Cache a response."""
         cache_key = self._generate_cache_key(query, system_prompt, model_used)
+        normalized_query = query.strip().lower()
+        system_prompt_key = system_prompt or ""
         
         with self.lock:
             # Create cached response
             cached_response = CachedResponse(
+                normalized_query=normalized_query,
+                system_prompt=system_prompt_key,
                 text=response_text,
                 sources=sources,
                 model_used=model_used,
@@ -127,6 +133,45 @@ class ResponseCache:
             self.cache.clear()
             self.access_order.clear()
             logger.info("Response cache cleared")
+    
+    def invalidate_by_query(self, query: str, system_prompt: Optional[str] = None,
+                            model: Optional[str] = None) -> int:
+        """Invalidate a cached response for an exact query/system_prompt/model combination."""
+        cache_key = self._generate_cache_key(query, system_prompt, model)
+        with self.lock:
+            if cache_key in self.cache:
+                del self.cache[cache_key]
+                if cache_key in self.access_order:
+                    self.access_order.remove(cache_key)
+                logger.info(f"Invalidated cached response for query: {query[:50]}...")
+                return 1
+        return 0
+
+    def invalidate_all_variants(self, query: str) -> int:
+        """Invalidate all cached responses for a query regardless of system_prompt/model."""
+        invalidated_count = 0
+        normalized_query = (query or "").strip().lower()
+        if not normalized_query:
+            return 0
+
+        with self.lock:
+            keys_to_remove = []
+            for cache_key, cached in self.cache.items():
+                if getattr(cached, "normalized_query", "") == normalized_query:
+                    keys_to_remove.append(cache_key)
+
+            # Remove invalidated entries
+            for key in keys_to_remove:
+                if key in self.cache:
+                    del self.cache[key]
+                    invalidated_count += 1
+                if key in self.access_order:
+                    self.access_order.remove(key)
+
+        if invalidated_count > 0:
+            logger.info(f"Invalidated {invalidated_count} cached response entries for query: {query[:50]}...")
+
+        return invalidated_count
     
     def invalidate_by_source(self, source_file: str) -> int:
         """Invalidate cached responses that used a specific source file."""

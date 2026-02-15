@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     # Ollama configuration
     ollama_host: str = "http://host.docker.internal:11434"
-    default_model: str = "mistral:7b"
+    default_model: str = "granite3-dense:8b"
     embedding_model: str = "nomic-embed-text:latest"
     embedding_dim: int = 768
 
