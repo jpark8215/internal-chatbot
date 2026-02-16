@@ -1133,10 +1133,6 @@
             <div class="input-actions">
               <div class="search-options">
                 <label class="checkbox-group">
-                  <input type="checkbox" id="hybridSearch" checked aria-describedby="hybrid-help">
-                  <span>Hybrid Search</span>
-                </label>
-                <label class="checkbox-group">
                   <input type="checkbox" id="strictMode" aria-describedby="strict-help">
                   <span>Document-only Mode</span>
                 </label>
@@ -1205,10 +1201,6 @@
               <span>Use keywords from your documents for better results</span>
             </li>
             <li>
-              <i class="fas fa-check"></i>
-              <span>Enable Hybrid Search for complex queries</span>
-            </li>
-            <li>
               <i class="fas fa-keyboard"></i>
               <span>Press <span class="keyboard-shortcut">Ctrl + Enter</span> to search</span>
             </li>
@@ -1264,7 +1256,6 @@
       sources: document.getElementById('sources'),
       sourcesSection: document.getElementById('sourcesSection'),
       sourcesCount: document.getElementById('sourcesCount'),
-      hybridSearch: document.getElementById('hybridSearch'),
       strictMode: document.getElementById('strictMode'),
       btnText: document.querySelector('.btn-text'),
       strategyBadge: document.getElementById('strategyBadge'),
@@ -1298,7 +1289,7 @@
             max_tokens: 512,
             temperature: 0.1,
             system_prompt: elements.strictMode.checked ?
-              "You are a document retrieval assistant. Only present information from the provided documents. Do not generate new information." :
+              "You are a document retrieval assistant. Only present information that appears explicitly in the provided documents. Do not generate, infer, or add any new information. When answering a query, identify and prioritize the document sections that contain the highest number of exact or closely matching keywords and phrases from the user’s request. Base your response strictly on those highest-relevance matches, and quote or summarize only the matching content. If no sufficiently relevant match is found, state that the information is not available in the provided documents." :
               null
           })
         });

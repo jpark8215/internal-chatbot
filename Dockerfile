@@ -23,6 +23,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source
 COPY api /app/api
 
+# Copy configuration (keyword rules, etc.)
+COPY config /app/config
+
 ENV PYTHONPATH=/app
 
 CMD ["sh", "-c", "python -m api.wait_for_db && uvicorn api.app:app --host 0.0.0.0 --port 8000"]

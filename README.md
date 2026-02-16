@@ -95,6 +95,35 @@ py -m api.main
 - Parallel processing for retrieval and context building
 - Accurate similarity scoring with intuitive percentages
 
+### Retrieval Strategies
+
+The system supports multiple retrieval strategies (see `SearchStrategy` in `api/rag_service.py`).
+
+- **SEMANTIC**
+  Uses vector similarity search with embeddings (pgvector). The query is embedded and the database is searched by cosine distance (`embedding <-> query_vector`).
+
+- **KEYWORD**
+  Uses text/keyword matching against `content` (SQL `ILIKE`-based ranking in `VectorDAO.search_keyword`).
+
+- **HYBRID**
+  Uses both vector similarity and keyword matching (implemented in the DAO as `search_hybrid(query_vector, query_text, top_k)`).
+
+- **ENHANCED**
+  A tuned hybrid-style retrieval mode (DAO `search_enhanced(...)`) plus optional rule-driven behavior:
+  keyword rules can select this strategy for certain queries, and matching rules can also boost certain sources during context building.
+
+- **COMBINED**
+  A combined retrieval mode (DAO `search_combined(...)`) intended to merge/fallback across approaches for better recall.
+
+### Keyword Rules (`config/keyword_rules.json`)
+
+Strategy selection and source boosting can be influenced by keyword rules loaded by `api/keyword_config.py`.
+
+- **Strategy selection**: `KeywordConfig.get_strategy_for_query(query)` can override the default strategy.
+- **Source boosting**: `KeywordConfig.get_boost_rules_for_query(query)` can boost documents whose `source_file` matches configured patterns.
+
+In Docker, the file must exist at `/app/config/keyword_rules.json` for rules to load.
+
 **Database Layer (`api/dao.py`)**
 - PostgreSQL with pgvector for vector similarity search
 - Optimized queries with connection pooling
@@ -499,8 +528,3 @@ Access comprehensive monitoring through:
 - **Security Ready**: Authentication hooks and secure configuration management
 - **High Availability**: Connection pooling, failover support, and health monitoring
 - **Data Integrity**: Automatic backup recommendations and data consistency checks
-
-
-/*
-Strategies: SEMANTIC (vector), KEYWORD (text), HYBRID (both), ENHANCED (rule-based + hybrid), COMBINED (fallback)
-*/

@@ -34,7 +34,7 @@
                 "Lea",
                 "county"
             ],
-            "strategy": "combined",
+            "strategy": "enhanced",
             "boost_sources": [
                 "lea",
                 "county"
@@ -53,7 +53,7 @@
         },
         {
             "keywords": [
-                "RHA",
+                "rha",
                 "HR"
             ],
             "strategy": "enhanced",
