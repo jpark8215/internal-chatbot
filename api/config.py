@@ -51,8 +51,6 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "json"
 
-    # Rate limiting (removed for simplicity)
-
     # Performance configuration
     embedding_batch_size: int = 50
     max_concurrent_requests: int = 20
@@ -71,8 +69,6 @@ class Settings(BaseSettings):
     embedding_cache_size: int = 2000  # Increased cache size
     enable_query_result_cache: bool = True
     query_result_cache_ttl: int = 600  
-
-    # Monitoring (removed for simplicity)
 
     # Feature flags
     enable_streaming: bool = False

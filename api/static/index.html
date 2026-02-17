@@ -338,41 +338,10 @@
 
     .input-actions {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: center;
       flex-wrap: wrap;
       gap: 1rem;
-    }
-
-    .search-options {
-      display: flex;
-      gap: 1.5rem;
-      flex-wrap: wrap;
-    }
-
-    .checkbox-group {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      font-size: 0.875rem;
-      color: var(--text-secondary);
-      cursor: pointer;
-      user-select: none;
-      padding: 0.5rem 0.75rem;
-      border-radius: var(--radius-lg);
-      transition: all 0.2s ease;
-    }
-
-    .checkbox-group:hover {
-      background: var(--bg-secondary);
-      color: var(--text-primary);
-    }
-
-    .checkbox-group input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      accent-color: var(--accent-primary);
-      cursor: pointer;
     }
 
     .submit-btn {
@@ -898,9 +867,7 @@
         align-items: stretch;
       }
 
-      .search-options {
-        justify-content: center;
-      }
+
 
       .submit-btn {
         width: 100%;
@@ -1131,12 +1098,6 @@
 
             <!-- Enhanced Search Options -->
             <div class="input-actions">
-              <div class="search-options">
-                <label class="checkbox-group">
-                  <input type="checkbox" id="strictMode" aria-describedby="strict-help">
-                  <span>Document-only Mode</span>
-                </label>
-              </div>
               <button id="generate" class="submit-btn" type="button">
                 <i class="fas fa-search"></i>
                 <span class="btn-text">Search</span>
@@ -1201,6 +1162,10 @@
               <span>Use keywords from your documents for better results</span>
             </li>
             <li>
+              <i class="fas fa-check"></i>
+              <span>Help the app improve its responses by providing a rating</span>
+            </li>
+            <li>
               <i class="fas fa-keyboard"></i>
               <span>Press <span class="keyboard-shortcut">Ctrl + Enter</span> to search</span>
             </li>
@@ -1256,7 +1221,6 @@
       sources: document.getElementById('sources'),
       sourcesSection: document.getElementById('sourcesSection'),
       sourcesCount: document.getElementById('sourcesCount'),
-      strictMode: document.getElementById('strictMode'),
       btnText: document.querySelector('.btn-text'),
       strategyBadge: document.getElementById('strategyBadge'),
       responseTime: document.getElementById('responseTime'),
@@ -1288,9 +1252,7 @@
             prompt,
             max_tokens: 512,
             temperature: 0.1,
-            system_prompt: elements.strictMode.checked ?
-              "You are a document retrieval assistant. Only present information that appears explicitly in the provided documents. Do not generate, infer, or add any new information. When answering a query, identify and prioritize the document sections that contain the highest number of exact or closely matching keywords and phrases from the user’s request. Base your response strictly on those highest-relevance matches, and quote or summarize only the matching content. If no sufficiently relevant match is found, state that the information is not available in the provided documents." :
-              null
+            system_prompt: null
           })
         });
 
@@ -1687,7 +1649,7 @@
             
             <div class="feedback-content">
               <div class="rating-section" style="text-align: center; margin-bottom: 1.5rem;">
-                <p style="color: var(--text-secondary); margin-bottom: 1rem;">How would you rate this response?</p>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">How would you rate this response? <span style="color: var(--error); font-size: 0.75rem; margin-left: 0.5rem;">(Required)</span></p>
                 <div class="star-rating" style="display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 1rem;">
                   ${Array.from({ length: 5 }, (_, i) => `
                     <button class="star-btn" data-rating="${i + 1}" style="
@@ -1722,7 +1684,7 @@
                 <h4 style="color: var(--text-primary); font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">Quick Feedback</h4>
                 
                 <div class="feedback-group" style="margin-bottom: 1rem;">
-                  <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.5rem;">Was this response helpful?</p>
+                  <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.5rem;">Was this response helpful? <span style="color: var(--error); font-size: 0.75rem; margin-left: 0.5rem;">(Required)</span></p>
                   <div class="button-group" style="display: flex; gap: 0.5rem;">
                     <button class="helpful-btn" data-value="true" style="
                       padding: 0.5rem 1rem;
@@ -1760,7 +1722,7 @@
                 </div>
 
                 <div class="feedback-group" style="margin-bottom: 1rem;">
-                  <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.5rem;">Was this response accurate?</p>
+                  <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.5rem;">Was this response accurate? <span style="color: var(--error); font-size: 0.75rem; margin-left: 0.5rem;">(Required)</span></p>
                   <div class="button-group" style="display: flex; gap: 0.5rem;">
                     <button class="accurate-btn" data-value="true" style="
                       padding: 0.5rem 1rem;
@@ -1917,6 +1879,20 @@
                 </div>
               </div>
             </div>
+
+            <div id="feedback-error-msg" style="
+              display: none;
+              color: var(--error);
+              background: var(--error-light);
+              padding: 0.75rem;
+              border-radius: var(--radius-lg);
+              margin-bottom: 1rem;
+              text-align: center;
+              font-size: 0.875rem;
+              border: 1px solid var(--error);
+            ">
+              <i class="fas fa-exclamation-circle"></i> Please complete all required fields.
+            </div>
             
             <div class="feedback-actions" style="
               display: flex;
@@ -2072,6 +2048,35 @@
 
       // Submit functionality
       submitBtn.addEventListener('click', async () => {
+        // Validation
+        const errorMsg = modal.querySelector('#feedback-error-msg');
+        if (selectedRating === 0 || isHelpful === null || isAccurate === null) {
+          if (errorMsg) {
+            errorMsg.style.display = 'block';
+            // Shake animation
+            errorMsg.style.animation = 'none';
+            // Trigger reflow
+            void errorMsg.offsetWidth;
+            errorMsg.style.animation = 'shake 0.5s';
+
+            // Add shake keyframes if not exists
+            if (!document.getElementById('shake-style')) {
+              const style = document.createElement('style');
+              style.id = 'shake-style';
+              style.textContent = `
+                @keyframes shake {
+                  0%, 100% { transform: translateX(0); }
+                  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+                  20%, 40%, 60%, 80% { transform: translateX(5px); }
+                }
+              `;
+              document.head.appendChild(style);
+            }
+          }
+          return;
+        }
+        if (errorMsg) errorMsg.style.display = 'none';
+
         // Get the response text from the current output
         const responseText = elements.output.querySelector('.response-text')?.textContent || '';
 

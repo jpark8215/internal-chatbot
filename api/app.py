@@ -35,7 +35,6 @@ settings = get_settings()
 # Setup logging
 setup_logging(settings.log_level, settings.log_format)
 
-# Middleware removed for simplicity - can be re-added if needed
 
 _static_dir = Path(__file__).parent / "static"
 if _static_dir.exists():
@@ -54,9 +53,6 @@ async def _startup():
         if target and _Path(target).exists():
             try:
                 # Allow ingesting additional files even if database has content
-                # dao = get_dao()
-                # if dao.count_documents() > 0:
-                #     return
                 pass
             except Exception:
                 return
@@ -173,7 +169,7 @@ async def health():
     )
 
 
-# Detailed health endpoint removed for simplicity
+
 
 
 @app.get("/")
